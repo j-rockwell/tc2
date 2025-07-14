@@ -1,10 +1,3 @@
-//
-//  clientApp.swift
-//  client
-//
-//  Created by John Rockwell on 7/13/25.
-//
-
 import SwiftUI
 
 @main
