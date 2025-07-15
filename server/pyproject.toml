@@ -1,0 +1,17 @@
+[tool.poetry]
+name = "server"
+version = "0.1.0"
+description = "Backend Services"
+authors = ["John Rockwell <j@jrockwell.dev>"]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+fastapi = "^0.95.0"
+uvicorn = {extras = ["standard"], version = "^0.23.0"}
+motor = "^3.7"
+aioredis = "^2.0.1"
+pydantic = {extras = ["email"], version = "^1.10.0"}
+python-dotenv = "^1.0.0"
+pymongo = "^4.13.2"
+argon2-cffi = "^25.1.0"
+pyjwt = "^2.10.1"
