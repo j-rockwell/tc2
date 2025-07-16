@@ -6,7 +6,7 @@ from app.models.responses.account import AccountCreateResponse
 from app.models.responses.base import ErrorResponse
 from app.schema.account import AccountBase
 from app.db.mongo import Mongo
-from app.util.hash import make_hash
+from app.util.hash import Hasher
 from app.util.token import Tokenizer
 from app.config import settings
 from app.util.cookie import set_auth_cookies
@@ -52,7 +52,7 @@ async def create_account(
         if await db.find_one("accounts", {"username": req.username.lower()}):
             raise HTTPException(status.HTTP_409_CONFLICT, detail="This username is already in use")
         
-        pwd = make_hash(req.password)
+        pwd = Hasher.make(req.password)
         
         doc = {
             "email": req.email.lower(),
