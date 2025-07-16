@@ -28,6 +28,7 @@ class AccountBase(BaseModel):
     username: str
     email: str
     password: str
+    metadata: AccountMeta
     bio: Optional[BiometricsBase]
     profile: Optional[ProfileBase]
     privacy: Optional[PrivacyBase]
