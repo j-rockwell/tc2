@@ -25,5 +25,3 @@ class Settings(BaseSettings):
         return self.environment.lower() == "prod"
 
 settings = Settings()
-
-print(settings.mongo_db_name)
