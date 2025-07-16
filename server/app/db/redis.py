@@ -178,7 +178,6 @@ class Redis:
         return self._client.pubsub()
     
     async def sadd(self, key: str, *values: Any) -> int:
-        """Add values to a set"""
         try:
             processed_values = []
             for value in values:
