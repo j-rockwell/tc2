@@ -2,6 +2,7 @@ import logging
 from fastapi import FastAPI
 from app.db.mongo import Mongo
 from app.routers.account import router as AccountRouter
+from app.routers.auth import router as AuthRouter
 from app.config import settings
 
 logger = logging.getLogger(__name__)
@@ -16,6 +17,12 @@ app.include_router(
     AccountRouter,
     prefix="/account",
     tags=["account", "user"],
+)
+
+app.include_router(
+    AuthRouter,
+    prefix="/auth",
+    tags="auth, authentication"
 )
 
 async def create_indexes():

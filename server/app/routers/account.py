@@ -2,7 +2,7 @@ from fastapi import APIRouter, status, HTTPException, Response, Depends
 from fastapi.security import HTTPBearer
 from app.deps import get_mongo
 from app.models.requests.account import AccountCreateRequest
-from app.models.responses.account import AccountCreateResponse
+from app.models.responses.account import AccountCreateResponse, AccountData
 from app.models.responses.base import ErrorResponse
 from app.schema.account import AccountBase
 from app.db.mongo import Mongo
@@ -68,7 +68,15 @@ async def create_account(
         
         access_token = Tokenizer.create_access_token(account_id, settings.access_token_secret, settings.access_token_ttl_minutes)
         refresh_token = Tokenizer.create_refresh_token(account_id, settings.refresh_token_secret, settings.refresh_token_ttl_minutes)
-        res = AccountCreateResponse(id=account_id, access_token=access_token, refresh_token=refresh_token)
+        res = AccountCreateResponse(
+            access_token=access_token,
+            refresh_token=refresh_token,
+            data=AccountData(
+                id=account_id,
+                username=req.username,
+                email=req.email
+            )
+        )
         
         set_auth_cookies(response, access_token, refresh_token)
         

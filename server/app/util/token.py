@@ -8,7 +8,7 @@ class Tokenizer:
     @staticmethod
     def create_access_token(id: str, additional_claims: Optional[Dict[str, Any]] = None):
         now = datetime.now(tz=timezone.utc)
-        exp = now + timedelta(minutes=settings.access_token_expire_minutes)
+        exp = now + timedelta(minutes=settings.access_token_ttl_minutes)
         payload = {
             "sub": id,
             "iat": now,

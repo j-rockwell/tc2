@@ -6,9 +6,9 @@ def set_auth_cookies(res: Response, access_token: str, refresh_token: str):
         key="access_token",
         value=access_token,
         httponly=True,
-        secure=settings.cookie_secure,
-        samesite=settings.cookie_samesite,
-        max_age=settings.access_token_expire_minutes * 60,
+        secure=settings.is_prod(),
+        samesite="lax",
+        max_age=settings.access_token_ttl_minutes,
         path="/"
     )
     
@@ -16,9 +16,9 @@ def set_auth_cookies(res: Response, access_token: str, refresh_token: str):
         key="refresh_token",
         value=refresh_token,
         httponly=True,
-        secure=settings.cookie_secure,
-        samesite=settings.cookie_samesite,
-        max_age=settings.refresh_token_expire_minutes * 60,
+        secure=settings.is_prod(),
+        samesite="lax",
+        max_age=settings.refresh_token_ttl_minutes,
         path="/"
     )
 
