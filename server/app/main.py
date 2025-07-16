@@ -1,12 +1,16 @@
 import logging
 from fastapi import FastAPI
 from app.db.mongo import Mongo
+from app.db.redis import Redis
 from app.routers.account import router as AccountRouter
 from app.routers.auth import router as AuthRouter
 from app.config import settings
 
+logging.basicConfig(
+    level=logging.INFO if not settings.debug else logging.DEBUG,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
 
 app = FastAPI(
     title="tc2",
@@ -31,15 +35,39 @@ async def create_indexes():
 
 @app.on_event("startup")
 async def on_startup():
-    app.state.mongodb = Mongo(settings.mongo_uri, settings.mongo_db_name)
-    ok = await app.state.mongodb.ping()
-    if ok:
-        logger.info("Successfully established a connection to MongoDB")
-        await create_indexes()
-    else:
-        logger.error("Could not establish a connection to MongoDB")
+    logger.info(f"Starting in {settings.environment} mode")
+    
+    try:
+        app.state.mongodb = Mongo(settings.mongo_uri, settings.mongo_db_name)
+        mongo_connected = await app.state.mongodb.ping()
+        
+        if mongo_connected:
+            logger.info("Successfully established connection to MongoDB")
+            await create_indexes()
+        else:
+            logger.error("Failed to establish connection to MongoDB")
+            raise Exception("MongoDB connection failed")
+    except Exception as e:
+        logger.error(f"Failed to initialize MongoDB: {e}")
+        raise
+    
+    try:
+        app.state.redis = Redis(settings.redis_uri, db=0)
+        redis_connected = await app.state.redis.connect()
+        
+        if redis_connected and await app.state.redis.ping():
+            logger.info("Successfully established connection to Redis")
+        else:
+            logger.info("Redis connection failed - running without Redis persistence")
+    except Exception as e:
+        logger.info(f"Redis not available: {e} - continuing without Redis")
 
 @app.on_event("shutdown")
 async def on_shutdown():
-    app.state.mongodb._client.close()
-    logger.info("MongoDB connection has been closed")
+    if hasattr(app.state, 'mongodb'):
+        app.state.mongodb._client.close()
+        logger.info("MongoDB connection closed")
+    
+    if hasattr(app.state, 'redis'):
+        app.state.redis.close()
+        logger.info("Redis connection closed")

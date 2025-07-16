@@ -2,12 +2,16 @@ from fastapi import Request, HTTPException, status, Cookie, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from typing import Optional, Dict, Any
 from app.db.mongo import Mongo
+from app.db.redis import Redis
 from app.util.token import Tokenizer
 
 security = HTTPBearer(auto_error=False)
 
 def get_mongo(req: Request) -> Mongo:
     return req.app.state.mongodb
+
+def get_redis(req: Request) -> Redis:
+    return req.app.state.redis
 
 async def read_request_account_id(
     db: Mongo = Depends(get_mongo),
