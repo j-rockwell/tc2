@@ -16,24 +16,24 @@ python -c "import secrets; print('JWT_SECRET_KEY=' + secrets.token_urlsafe(64))"
 
 # Add other configuration
 cat >> .env << EOF
-# Environment
-ENVIRONMENT=development
+MONGO_URI=mongodb://localhost:27017
+MONGO_DB_NAME="tc2"
+
+REDIS_URI=redis://localhost:6379
+REDIS_PASSWORD=
+
+ACCESS_TOKEN_SECRET="passkey123"
+REFRESH_TOKEN_SECRET="passkey123"
+ACCESS_TOKEN_TTL_MINUTES=30
+REFRESH_TOKEN_TTL_MINUTES=1440
+
+ENVIRONMENT=dev
 DEBUG=true
 
-# Database
-MONGODB_URL=mongodb://localhost:27017
-DATABASE_NAME=tc2_dev
-
-# Redis (optional)
-REDIS_URL=redis://localhost:6379/0
-
-# Security
-COOKIE_SECURE=false
-COOKIE_SAMESITE=lax
-
-# Server
 HOST=0.0.0.0
 PORT=8000
+
+LOG_LEVEL=INFO
 EOF
 ```
 
