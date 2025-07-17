@@ -20,13 +20,13 @@ app = FastAPI(
 app.include_router(
     AccountRouter,
     prefix="/account",
-    tags=["account", "user"],
+    tags=["account"],
 )
 
 app.include_router(
     AuthRouter,
     prefix="/auth",
-    tags="auth, authentication"
+    tags=["authentication"]
 )
 
 async def create_indexes():
