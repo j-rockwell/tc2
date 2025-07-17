@@ -53,14 +53,21 @@ async def on_startup():
     
     try:
         app.state.redis = Redis(settings.redis_uri, db=0)
-        redis_connected = await app.state.redis.connect()
         
-        if redis_connected and await app.state.redis.ping():
+        redis_connected = await app.state.redis.connect()
+        if not redis_connected:
+            raise Exception("Redis connection failed")
+        
+        ping_result = await app.state.redis.ping()
+        if ping_result:
             logger.info("Successfully established connection to Redis")
         else:
-            logger.info("Redis connection failed - running without Redis persistence")
+            logger.error("Redis ping failed")
+            raise Exception("Redis ping failed")
+            
     except Exception as e:
-        logger.info(f"Redis not available: {e} - continuing without Redis")
+        logger.error(f"Redis connection failed: {e} - continuing without Redis")
+        app.state.redis = None
 
 @app.on_event("shutdown")
 async def on_shutdown():

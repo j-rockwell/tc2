@@ -1,9 +1,12 @@
-from fastapi import Request, HTTPException, status, Cookie, Depends
+from bson import ObjectId
+from fastapi import Request, HTTPException, status, Request, Cookie, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from typing import Optional, Dict, Any
 from app.db.mongo import Mongo
 from app.db.redis import Redis
 from app.util.token import Tokenizer
+from app.util.session import Sessions, SessionSecurity
+from app.util.session import get_client_info
 
 security = HTTPBearer(auto_error=False)
 
@@ -14,7 +17,9 @@ def get_redis(req: Request) -> Redis:
     return req.app.state.redis
 
 async def read_request_account_id(
+    request: Request,
     db: Mongo = Depends(get_mongo),
+    redis: Redis = Depends(get_redis),
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
     access_token: Optional[str] = Cookie(None)
 ) -> Dict[str, Any]:
@@ -28,15 +33,15 @@ async def read_request_account_id(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Authentication required",
-            headers={"WWW_Authenticate": "Bearer"}
+            headers={"WWW-Authenticate": "Bearer"}
         )
     
-    payload = Tokenizer.decode_token(token)
+    payload = Tokenizer.decode_access_token(token)
     if not payload:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token",
-            headers={"WWW-Authenticate", "Bearer"}
+            headers={"WWW-Authenticate": "Bearer"}
         )
     
     if payload.get("type") != "access":
@@ -46,17 +51,52 @@ async def read_request_account_id(
             headers={"WWW-Authenticate": "Bearer"}
         )
     
-    id = payload.get("sub")
-    if not id:
+    account_id = payload.get("sub")
+    if not account_id:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token payload",
             headers={"WWW-Authenticate": "Bearer"}
         )
     
-    from bson import ObjectId
+    if not await Sessions.is_valid(redis, account_id, "access"):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Session expired or invalid"
+        )
+    
+    client_info = get_client_info(request)
+    
+    security_check = await SessionSecurity.detect_suspicious(
+        redis, account_id, client_info["ip"], client_info["user_agent"]
+    )
+    
+    if security_check["score"] > 70:
+        await SessionSecurity.log_event(
+            redis, account_id, "high_suspicion_access",
+            security_check, client_info["ip"]
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Additional verification required",
+            headers={"X-Challenge-Required": "true"}
+        )
+    
+    await Sessions.update(redis, account_id, "access", client_info["ip"])
+    
+    user_cache_key = f"user:{account_id}"
+    cached_user = await redis.get(user_cache_key, decode_json=True)
+    
+    if cached_user:
+        return {
+            "id": cached_user["id"],
+            "username": cached_user["username"],
+            "email": cached_user["email"],
+            "email_confirmed": cached_user.get("email_confirmed", False)
+        }
+    
     try:
-        account = await db.find_one("accounts", {"_id": ObjectId(id)})
+        account = await db.find_one("accounts", {"_id": ObjectId(account_id)})
     except Exception:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -64,19 +104,30 @@ async def read_request_account_id(
         )
     
     if not account:
+        await Sessions.invalidate(redis, account_id, "access")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Account not found"
         )
     
-    return account
+    user_data = {
+        "id": str(account["_id"]),
+        "username": account["username"],
+        "email": account["email"],
+        "email_confirmed": account.get("metadata", {}).get("email_confirmed", False)
+    }
+    await redis.setex(user_cache_key, 3600, user_data)
+    
+    return user_data
 
 async def read_request_account_id_optional(
+    request: Request,
     db: Mongo = Depends(get_mongo),
+    redis: Redis = Depends(get_redis),
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
     access_token: Optional[str] = Cookie(None)
 ) -> Optional[Dict[str, Any]]:
     try:
-        return await read_request_account_id(db, credentials, access_token)
+        return await read_request_account_id(request, db, redis, credentials, access_token)
     except HTTPException:
         return None

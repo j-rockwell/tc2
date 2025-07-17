@@ -38,18 +38,40 @@ class Tokenizer:
         return jwt.encode(payload, settings.refresh_token_secret, algorithm="HS256")
     
     @staticmethod
-    def decode_token(token: str) -> Optional[Dict[str, Any]]:
+    def decode_access_token(token: str) -> Optional[Dict[str, Any]]:
         try:
             payload = jwt.decode(
                 token, 
-                settings.jwt_secret_key, 
-                algorithms=[settings.jwt_algorithm]
+                settings.access_token_secret, 
+                algorithms=["HS256"]
             )
             return payload
         except jwt.ExpiredSignatureError:
             return None
         except jwt.InvalidTokenError:
             return None
+    
+    @staticmethod
+    def decode_refresh_token(token: str) -> Optional[Dict[str, Any]]:
+        try:
+            payload = jwt.decode(
+                token, 
+                settings.refresh_token_secret, 
+                algorithms=["HS256"]
+            )
+            return payload
+        except jwt.ExpiredSignatureError:
+            return None
+        except jwt.InvalidTokenError:
+            return None
+    
+    @staticmethod
+    def decode_token(token: str) -> Optional[Dict[str, Any]]:
+        result = Tokenizer.decode_access_token(token)
+        if result:
+            return result
+        
+        return Tokenizer.decode_refresh_token(token)
     
     @staticmethod
     def get_user_id_from_token(token: str) -> Optional[str]:

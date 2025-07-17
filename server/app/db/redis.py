@@ -177,6 +177,35 @@ class Redis:
     def pubsub(self):
         return self._client.pubsub()
     
+    async def lpush(self, key: str, *values: Any) -> int:
+        try:
+            processed_values = []
+            for value in values:
+                if isinstance(value, (dict, list)):
+                    processed_values.append(dumps(value))
+                else:
+                    processed_values.append(str(value))
+            
+            return await self._client.lpush(key, *processed_values)
+        except Exception as e:
+            logger.error(f"Failed left pushing to list {key}: {e}")
+            return 0
+
+    async def llen(self, key: str) -> int:
+        try:
+            return await self._client.llen(key)
+        except Exception as e:
+            logger.error(f"Failed getting length of list {key}: {e}")
+            return 0
+    
+    async def ltrim(self, key: str, start: int, end: int) -> bool:
+        try:
+            result = await self._client.ltrim(key, start, end)
+            return result
+        except Exception as e:
+            logger.error(f"Failed trimming list {key}: {e}")
+            return False
+    
     async def sadd(self, key: str, *values: Any) -> int:
         try:
             processed_values = []
