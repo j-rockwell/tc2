@@ -52,10 +52,10 @@ class TokenManager: TokenManagerProtocol {
         let status = SecItemCopyMatching(query as CFDictionary, &result)
         
         guard status == errSecSuccess,
-                      let data = result as? Data,
-                      let string = String(data: data, encoding: .utf8) else {
-                    return nil
-                }
+            let data = result as? Data,
+            let string = String(data: data, encoding: .utf8) else {
+                return nil
+            }
         
         return string
     }
