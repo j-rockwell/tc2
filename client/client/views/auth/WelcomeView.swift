@@ -2,42 +2,31 @@ import SwiftUI
 
 struct WelcomeView: View {
     var body: some View {
-        WelcomeContentView(
-            onCreateAccountPress: {
-                print("onCreateAccountPress")
-            },
-            
-            onSignInPress: {
-                print("onSignInPress")
-            }
-        )
-    }
-}
-
-private struct WelcomeContentView: View {
-    let onCreateAccountPress: () -> Void
-    let onSignInPress: () -> Void
-    
-    var body: some View {
-        WelcomeButtons(onCreateAccountPress: onCreateAccountPress, onSignInPress: onSignInPress)
+        WelcomeButtons()
     }
 }
 
 private struct WelcomeButtons: View {
-    let onCreateAccountPress: () -> Void
-    let onSignInPress: () -> Void
+    private func onCreateAccount() {
+        print("Test")
+    }
+
+    private func onSignIn() {
+        print("Test 2")
+    }
     
     var body: some View {
-        VStack() {
-            Button(action: onSignInPress) {
-                Text("Sign In")
-            }
-            .primary()
-            
-            Button(action: onCreateAccountPress) {
+        VStack(spacing: 8) {
+            Button(action: onCreateAccount) {
                 Text("Create Account")
-            }
-            .primary()
+                    .frame(maxWidth: .infinity)
+                    .fontWeight(.semibold)
+            }.buttonStyle(.borderedProminent)
+            
+            Button(action: onSignIn) {
+                Text("Sign in")
+                    .frame(maxWidth: .infinity)
+            }.buttonStyle(.borderedProminent)
         }
     }
 }
