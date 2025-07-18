@@ -5,6 +5,7 @@ struct RegisterView: View {
     @State private var username: String = ""
     @State private var email: String = ""
     @State private var password: String = ""
+    @State private var confirmPassword: String = ""
     
     private func handleBackPress() {
         presentationMode.wrappedValue.dismiss()
