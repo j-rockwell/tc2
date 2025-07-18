@@ -1,14 +1,15 @@
 import SwiftUI
 
 struct OTPView: View {
-    @State private var username: String = ""
+    @Environment(\.presentationMode) var presentationMode
+    @State private var otpCode: String = ""
     
     private func handleBackPress() {
-        
+        presentationMode.wrappedValue.dismiss()
     }
     
     private func handleSubmit() {
-        
+        print("OTP submitted: \(otpCode)")
     }
     
     var body: some View {
@@ -23,8 +24,9 @@ struct OTPView: View {
             
             VStack {
                 CustomTextField(
-                    "Email or Username",
-                    text: $username,
+                    "4-Digit Code",
+                    text: $otpCode,
+                    keyboardType: .numberPad
                 )
             }
             .padding(.horizontal, AppSpacing.Semantic.screen)
@@ -32,8 +34,8 @@ struct OTPView: View {
             
             Spacer()
             
-            NavigationLink(destination: ForgotPasswordView().navigationBarBackButtonHidden(true)) {
-                Text("Submit")
+            NavigationLink(destination: PasswordChangeView().navigationBarBackButtonHidden(true)) {
+                Text("Verify")
                     .font(.headline)
                     .fontWeight(.bold)
                     .foregroundColor(.white)
@@ -45,9 +47,6 @@ struct OTPView: View {
             .padding(.horizontal, AppSpacing.Semantic.screen)
             .padding(.bottom, AppSpacing.Semantic.screen)
         }
+        .navigationBarHidden(true)
     }
-}
-
-#Preview {
-    OTPView()
 }

@@ -1,14 +1,16 @@
+
 import SwiftUI
 
 struct ForgotPasswordView: View {
+    @Environment(\.presentationMode) var presentationMode
     @State private var username: String = ""
     
     private func handleBackPress() {
-        
+        presentationMode.wrappedValue.dismiss()
     }
     
     private func handleSubmit() {
-        
+        print("Submit pressed with username: \(username)")
     }
     
     var body: some View {
@@ -42,9 +44,6 @@ struct ForgotPasswordView: View {
             .padding(.horizontal, AppSpacing.Semantic.screen)
             .padding(.bottom, AppSpacing.Semantic.screen)
         }
+        .navigationBarHidden(true)
     }
-}
-
-#Preview {
-    ForgotPasswordView()
 }

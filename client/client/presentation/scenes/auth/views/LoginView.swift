@@ -40,15 +40,13 @@ struct LoginView: View {
             
             VStack(spacing: AppSpacing.Semantic.element) {
                 NavigationLink(destination: ForgotPasswordView().navigationBarBackButtonHidden(true)) {
-                    Button(action: {}) {
-                        Text("Forgot Password")
-                            .fontWeight(.bold)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: AppSizing.Semantic.button)
-                            .foregroundColor(.white)
-                    }
-                    .background(Color.gray)
-                    .cornerRadius(AppRadius.Semantic.button)
+                    Text("Forgot Password")
+                        .fontWeight(.bold)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: AppSizing.Semantic.button)
+                        .foregroundColor(.white)
+                        .background(Color.gray)
+                        .cornerRadius(AppRadius.Semantic.button)
                 }
                 
                 Button(action: handleSignInPress) {
@@ -65,8 +63,4 @@ struct LoginView: View {
             .padding(.horizontal, AppSpacing.Semantic.screen)
         }
     }
-}
-
-#Preview {
-    LoginView()
 }

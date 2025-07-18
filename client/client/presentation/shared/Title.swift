@@ -23,7 +23,7 @@ struct Title: View {
     
     var body: some View {
         VStack(alignment: alignment, spacing: 0) {
-            HStack(alignment: .top) {
+            HStack(alignment: .firstTextBaseline) {
                 VStack(alignment: .leading, spacing: AppSpacing.xs) {
                     Text(title)
                         .font(.largeTitle)
@@ -40,11 +40,13 @@ struct Title: View {
                 
                 if showBackButton {
                     Button(action: backButtonAction ?? {}) {
-                        Image(systemName: "x.circle.fill")
-                            .font(.system(size: 24, weight: .medium))
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 28, weight: .medium))
                             .foregroundColor(.secondary)
+                            .background(Color(.systemBackground))
                             .clipShape(Circle())
                     }
+                    .offset(y: -4)
                 }
             }
         }

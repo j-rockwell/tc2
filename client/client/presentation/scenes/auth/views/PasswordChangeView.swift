@@ -1,22 +1,20 @@
-//
-//  PasswordChangeView.swift
-//  client
-//
-//  Created by John Rockwell on 7/18/25.
-//
-
 import SwiftUI
 
 struct PasswordChangeView: View {
+    @Environment(\.presentationMode) var presentationMode
     @State private var password: String = ""
     @State private var confirmedPassword: String = ""
     
     private func handleBackPress() {
-        
+        presentationMode.wrappedValue.dismiss()
     }
     
     private func handleSubmit() {
-        
+        if password == confirmedPassword {
+            print("Password changed successfully")
+        } else {
+            print("Passwords don't match")
+        }
     }
     
     var body: some View {
@@ -44,8 +42,8 @@ struct PasswordChangeView: View {
             
             Spacer()
             
-            NavigationLink(destination: ForgotPasswordView().navigationBarBackButtonHidden(true)) {
-                Text("Submit")
+            Button(action: handleSubmit) {
+                Text("Change Password")
                     .font(.headline)
                     .fontWeight(.bold)
                     .foregroundColor(.white)
@@ -57,9 +55,6 @@ struct PasswordChangeView: View {
             .padding(.horizontal, AppSpacing.Semantic.screen)
             .padding(.bottom, AppSpacing.Semantic.screen)
         }
+        .navigationBarHidden(true)
     }
-}
-
-#Preview {
-    PasswordChangeView()
 }
