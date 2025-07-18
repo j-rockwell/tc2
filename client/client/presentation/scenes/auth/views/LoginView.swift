@@ -9,6 +9,10 @@ struct LoginView: View {
         presentationMode.wrappedValue.dismiss()
     }
     
+    private func handleSignInPress() {
+        print("sign in press")
+    }
+    
     var body: some View {
         VStack() {
             Title(
@@ -35,17 +39,19 @@ struct LoginView: View {
             Spacer()
             
             VStack(spacing: AppSpacing.Semantic.element) {
-                Button(action: handleBackPress) {
-                    Text("Forgot Password")
-                        .fontWeight(.bold)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: AppSizing.Semantic.button)
-                        .foregroundColor(.white)
+                NavigationLink(destination: ForgotPasswordView().navigationBarBackButtonHidden(true)) {
+                    Button(action: {}) {
+                        Text("Forgot Password")
+                            .fontWeight(.bold)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: AppSizing.Semantic.button)
+                            .foregroundColor(.white)
+                    }
+                    .background(Color.gray)
+                    .cornerRadius(AppRadius.Semantic.button)
                 }
-                .background(Color.gray)
-                .cornerRadius(AppRadius.Semantic.button)
                 
-                Button(action: handleBackPress) {
+                Button(action: handleSignInPress) {
                     Text("Sign in")
                         .fontWeight(.bold)
                         .frame(maxWidth: .infinity)

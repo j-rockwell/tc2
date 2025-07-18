@@ -23,7 +23,7 @@ struct Title: View {
     
     var body: some View {
         VStack(alignment: alignment, spacing: 0) {
-            HStack {
+            HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: AppSpacing.xs) {
                     Text(title)
                         .font(.largeTitle)
@@ -32,6 +32,7 @@ struct Title: View {
                     if let subtitle = subtitle {
                         Text(subtitle)
                             .font(.subheadline)
+                            .foregroundColor(.secondary)
                     }
                 }
                 
