@@ -2,7 +2,7 @@ import Foundation
 import Combine
 
 protocol NetworkServiceProtocol {
-    func request<T: APIRequest>(_ request: T) -> AnyPublisher<T.Response, NetworkError>
+    func request<T: APIRequest>(_ request: T) async throws -> T.Response
 }
 
 class NetworkService: NetworkServiceProtocol {
@@ -14,10 +14,9 @@ class NetworkService: NetworkServiceProtocol {
         self.tokenManager = tokenManager;
     }
     
-    func request<T: APIRequest>(_ request: T) -> AnyPublisher<T.Response, NetworkError> {
+    func request<T: APIRequest>(_ request: T) async throws -> T.Response {
         guard let url = buildURL(for: request) else {
-            return Fail(error: NetworkError.invalidURL)
-                .eraseToAnyPublisher()
+            throw NetworkError.invalidURL
         }
         
         var urlRequest = URLRequest(url: url, timeoutInterval: APIConfig.timeout)
@@ -32,16 +31,24 @@ class NetworkService: NetworkServiceProtocol {
             urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
         
-        return session.dataTaskPublisher(for: urlRequest)
-            .map(\.data)
-            .decode(type: T.Response.self, decoder: JSONDecoder())
-            .mapError { error in
-                if error is DecodingError {
-                    return NetworkError.decodingError(error)
-                }
-                return NetworkError.networkFailure(error)
+        let (data, response) = try await session.data(for: urlRequest)
+        
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw NetworkError.networkFailure(URLError(.badServerResponse))
+        }
+        
+        guard 200...299 ~= httpResponse.statusCode else {
+            if httpResponse.statusCode == 401 {
+                throw NetworkError.unauthorized
             }
-            .eraseToAnyPublisher()
+            throw NetworkError.serverError(httpResponse.statusCode)
+        }
+        
+        do {
+            return try JSONDecoder().decode(T.Response.self, from: data)
+        } catch {
+            throw NetworkError.decodingError(error)
+        }
     }
     
     private func buildURL<T: APIRequest>(for request: T) -> URL? {

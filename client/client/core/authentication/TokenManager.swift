@@ -18,28 +18,36 @@ class TokenManager: TokenManagerProtocol {
     
     private init() {}
     
+    /// Read access token from keychain
     var accessToken: String? {
         return getFromKeychain(key: accessTokenKey)
     }
     
+    /// Read refresh token from keychan
     var refreshToken: String? {
         return getFromKeychain(key: refreshTokenKey)
     }
     
+    /// Write access token and refresh token to keychain
     func store(accessToken: String, refreshToken: String) {
         setInKeychain(key: accessTokenKey, value: accessToken)
         setInKeychain(key: refreshTokenKey, value: refreshToken)
     }
     
+    /// Remove both access token and refresh token from keychain
     func clear() {
         deleteFromKeychain(key: accessTokenKey)
         deleteFromKeychain(key: refreshTokenKey)
     }
     
+    /// Returns true if access token is not null
+    /// This does not guarantee that the user has a valid session
+    /// but can be assumed from this function unless an API call fails
     func isAuthenticated() -> Bool {
         return accessToken != nil
     }
     
+    /// Read a value from the device's keychain by key
     private func getFromKeychain(key: String) -> String? {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
@@ -60,6 +68,7 @@ class TokenManager: TokenManagerProtocol {
         return string
     }
     
+    /// Write a value to the device's keychain
     private func setInKeychain(key: String, value: String) {
         let data = value.data(using: .utf8)!
                 
@@ -74,6 +83,7 @@ class TokenManager: TokenManagerProtocol {
         SecItemAdd(query as CFDictionary, nil)
     }
     
+    /// Remove a value from the device's keychain
     private func deleteFromKeychain(key: String) {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,

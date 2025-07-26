@@ -31,7 +31,6 @@ struct RegisterAPIRequest: APIRequest {
     }
 }
 
-
 struct LogoutAPIRequest: APIRequest {
     typealias Response = APIResponse<String>
     
@@ -39,3 +38,9 @@ struct LogoutAPIRequest: APIRequest {
     var method: HTTPMethod { .POST }
 }
 
+struct RefreshTokenAPIRequest: APIRequest {
+    typealias Response = RefreshResponse
+    
+    var path: String { "/auth/refresh" }
+    var method: HTTPMethod { .POST }
+}
