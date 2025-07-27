@@ -5,6 +5,7 @@ protocol TokenServiceProtocol {
     var refreshToken: String? { get }
     
     func isAuthenticated() -> Bool
+    func set(accessToken: String, refreshToken: String) -> Void
     func clear() -> Void
 }
 
@@ -28,6 +29,11 @@ class TokenService: TokenServiceProtocol {
     
     func isAuthenticated() -> Bool {
         return accessToken != nil
+    }
+    
+    func set(accessToken: String, refreshToken: String) {
+        keychainService.set(key: akey, value: accessToken)
+        keychainService.set(key: rkey, value: refreshToken)
     }
     
     func clear() {

@@ -7,9 +7,11 @@ protocol NetworkServiceProtocol {
 
 class NetworkService: NetworkServiceProtocol {
     private let session: URLSession
+    private let tokenService: TokenServiceProtocol
     
-    init(session: URLSession = .shared) {
+    init(session: URLSession = .shared, tokenService: TokenServiceProtocol = TokenService()) {
         self.session = session
+        self.tokenService = tokenService
     }
     
     func request<T>(_ request: T) -> AnyPublisher<T.Response, NetworkError> where T : NetworkRequest {
@@ -21,9 +23,24 @@ class NetworkService: NetworkServiceProtocol {
         urlRequest.httpMethod = request.method.rawValue
         urlRequest.httpBody = request.body
         
-        for (key, value) in requests.headers {
+        for (key, value) in request.headers {
             urlRequest.setValue(value, forHTTPHeaderField: key)
         }
+        
+        if let token = tokenService.accessToken {
+            urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+        
+        return session.dataTaskPublisher(for: urlRequest)
+            .map(\.data)
+            .decode(type: T.Response.self, decoder: JSONDecoder())
+            .mapError { error in
+                if error is DecodingError {
+                    return NetworkError.decodingError(error)
+                }
+                return NetworkError.networkError(error)
+            }
+            .eraseToAnyPublisher()
     }
     
     private func buildURL<T: NetworkRequest>(for request: T) -> URL? {
