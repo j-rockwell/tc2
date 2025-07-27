@@ -1,6 +1,6 @@
 import Foundation
 
-struct APIResponse<T: Codable>: Codable {
+struct NetworkResponse<T: Codable>: Codable {
     let success: Bool
     let data: T?
     let message: String?

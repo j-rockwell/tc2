@@ -9,7 +9,7 @@ enum HTTPMethod: String {
     case PATH = "PATH"
 }
 
-protocol APIRequest {
+protocol NetworkRequest {
     associatedtype Response: Codable
     
     var path: String { get }
@@ -20,7 +20,7 @@ protocol APIRequest {
 }
 
 
-extension APIRequest {
+extension NetworkRequest {
     var headers: [String: String] {
         ["Content-Type": "application/json"]
     }
