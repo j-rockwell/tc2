@@ -46,11 +46,25 @@ class AuthenticationManager: ObservableObject {
     }
     
     private func validateSession() {
-        let isValidToken = tokenService.isAuthenticated()
+        
     }
     
-    private func fetchAccount() {
+    private func fetchAccount() async {
+        guard tokenService.isAuthenticated() else {
+            completeAuthentication(status: false)
+            return
+        }
         
+        do {
+            
+        } catch {
+            if case NetworkError.unauthorized = error {
+                
+            } else {
+                completeAuthentication(status: true)
+                
+            }
+        }
     }
     
     private func completeAuthentication(status: Bool) {
@@ -64,8 +78,23 @@ class AuthenticationManager: ObservableObject {
     }
     
     private func performTokenRefresh() async throws -> RefreshTokenResponse {
+        guard let refreshToken = tokenService.refreshToken else {
+            throw NetworkError.unauthorized
+        }
+        
         return try await withCheckedThrowingContinuation { continuation in
-            let request = RefreshTokenNetwork
+            networkService.refreshToken(refreshToken)
+                .sink(
+                    receiveCompletion: { completion in
+                        if case .failure(let error) = completion {
+                            continuation.resume(throwing: error)
+                        }
+                    },
+                    receiveValue: { response in
+                        continuation.resume(returning: response)
+                    }
+                )
+                .store(in: &cancellables)
         }
     }
     
@@ -87,22 +116,21 @@ class AuthenticationManager: ObservableObject {
     
     private func initRefreshTask() {
         refreshTask?.invalidate()
-                
-        guard let tokenInfo = tokenService.getTokenInfo(),
-              let timeUntilExpiration = tokenInfo.timeUntilExpiration,
-              timeUntilExpiration > 0 else { return }
-                
-        let refreshTime = max(timeUntilExpiration - (5 * 60), 60)
-                
-        refreshTask = Timer.scheduledTimer(withTimeInterval: 25 * 60, repeats: true) { [weak self] _ in
-                    Task { @MainActor in
-                        _ = await self?.refreshIfNeeded()
-                    }
-                }
         
+        let checkInterval: TimeInterval = 300
+                
+        refreshTask = Timer.scheduledTimer(withTimeInterval: checkInterval, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                _ = await self?.refreshIfNeeded()
+            }
+        }
     }
     
     private func clearError() {
         authError = nil
+    }
+    
+    private func handleAuthError(_ error: Error) {
+
     }
 }

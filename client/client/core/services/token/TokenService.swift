@@ -7,6 +7,12 @@ protocol TokenServiceProtocol {
     func isAuthenticated() -> Bool
     func set(accessToken: String, refreshToken: String) -> Void
     func clear() -> Void
+    func getInfo() -> TokenInfo?
+}
+
+struct TokenInfo {
+    let accessToken: String
+    let refreshToken: String
 }
 
 class TokenService: TokenServiceProtocol {
@@ -39,5 +45,14 @@ class TokenService: TokenServiceProtocol {
     func clear() {
         keychainService.delete(key: akey)
         keychainService.delete(key: rkey)
+    }
+    
+    func getInfo() -> TokenInfo? {
+        guard let accessToken = accessToken,
+              let refreshToken = refreshToken else {
+            return nil
+        }
+        
+        return TokenInfo(accessToken: accessToken, refreshToken: refreshToken)
     }
 }
