@@ -5,3 +5,8 @@ class AccountLoginResponse(BaseModel):
     access_token: str
     refresh_token: str
     data: AccountData
+
+class RefreshTokenResponse(BaseModel):
+    access_token: str
+    refresh_token: str
+    expires_in: int

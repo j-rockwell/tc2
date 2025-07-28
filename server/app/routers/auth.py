@@ -3,15 +3,16 @@ from fastapi import APIRouter, HTTPException, status, Response, Request, Cookie,
 from typing import Optional
 from datetime import datetime, timezone
 from app.models.responses.account import AccountData
-from app.models.requests.auth import AccountLoginRequest
+from app.models.requests.auth import AccountLoginRequest, RefreshTokenRequest
 from app.db.mongo import Mongo
 from app.db.redis import Redis
 from app.util.session import Sessions, SessionSecurity, get_client_info
 from app.deps import get_mongo, get_redis, read_request_account_id
-from app.models.responses.auth import AccountLoginResponse
+from app.models.responses.auth import AccountLoginResponse, RefreshTokenResponse
 from app.util.hash import Hasher
 from app.util.token import Tokenizer
 from app.util.cookie import set_auth_cookies, clear_auth_cookies
+from app.config import settings
 import logging
 
 logger = logging.getLogger(__name__)
@@ -189,6 +190,8 @@ async def login(
             detail="Internal server error"
         )
 
+
+
 @router.post(
     "/logout",
     summary="Logout from current session",
@@ -224,15 +227,110 @@ async def logout(
             detail="Internal server error"
         )
 
+
+
 @router.post(
     "/refresh",
+    summary="Refresh access token",
+    description="Generate a new access token using refresh token"
+)
+async def refresh_token(
+    req: RefreshTokenRequest,
+    request: Request,
+    response: Response,
+    redis: Redis = Depends(get_redis),
+):
+    try:
+        payload = Tokenizer.decode_refresh_token(req.refresh_token)
+        if not payload or payload.get("type") != "refresh":
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid refresh token"
+            )
+        
+        account_id = payload.get("sub")
+        if not account_id:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token payload"
+            )
+        
+        if not await Sessions.is_valid(redis, account_id, "refresh"):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Refresh session expired or invalid"
+            )
+        
+        client_info = get_client_info(request)
+        
+        security_check = await SessionSecurity.detect_suspicious(
+            redis, account_id, client_info["ip"], client_info["user_agent"]
+        )
+        
+        if security_check["score"] > 70:
+            await SessionSecurity.log_event(
+                redis, account_id, "high_suspicion_refresh",
+                security_check, client_info["ip"]
+            )
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Additional verification required",
+                headers={"X-Challenge-Required": "true"}
+            )
+        
+        new_access_token = Tokenizer.create_access_token(account_id)
+        new_refresh_token = Tokenizer.create_refresh_token(account_id)
+        
+        session_data = await Sessions.get(redis, account_id, "refresh")
+        if session_data:
+            await Sessions.create(
+                redis, account_id, "access", 
+                session_data["username"], session_data["email"],
+                client_info["ip"], client_info["user_agent"]
+            )
+            
+            await Sessions.invalidate(redis, account_id, "refresh")
+            await Sessions.create(
+                redis, account_id, "refresh",
+                session_data["username"], session_data["email"],
+                client_info["ip"], client_info["user_agent"]
+            )
+        
+        await Sessions.update(redis, account_id, "access", client_info["ip"])
+        
+        await SessionSecurity.log_event(
+            redis, account_id, "token_refresh_success",
+            {"ip": client_info["ip"], "user_agent": client_info["user_agent"]},
+            client_info["ip"]
+        )
+        
+        set_auth_cookies(response, new_access_token, new_refresh_token)
+        
+        return RefreshTokenResponse(
+            access_token=new_access_token,
+            refresh_token=new_refresh_token,
+            expires_in=settings.access_token_ttl_minutes * 60
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to refresh token: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error"
+        )
+
+
+
+@router.post(
+    "/refresh-cookie",
     summary="Refresh access token",
     description="Generate new access token using refresh token"
 )
 async def refresh_token(
     request: Request,
     response: Response,
-    db: Mongo = Depends(get_mongo),
     redis: Redis = Depends(get_redis),
     refresh_token: Optional[str] = Cookie(None)
 ):
@@ -260,12 +358,28 @@ async def refresh_token(
         if not await Sessions.is_valid(redis, account_id, "refresh"):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Refresh session expired"
+                detail="Refresh session expired or invalid"
             )
         
         client_info = get_client_info(request)
         
+        security_check = await SessionSecurity.detect_suspicious(
+            redis, account_id, client_info["ip"], client_info["user_agent"]
+        )
+        
+        if security_check["score"] > 70:
+            await SessionSecurity.log_event(
+                redis, account_id, "high_suspicion_refresh",
+                security_check, client_info["ip"]
+            )
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Additional verification required",
+                headers={"X-Challenge-Required": "true"}
+            )
+        
         new_access_token = Tokenizer.create_access_token(account_id)
+        new_refresh_token = Tokenizer.create_refresh_token(account_id)
         
         session_data = await Sessions.get(redis, account_id, "refresh")
         if session_data:
@@ -274,12 +388,29 @@ async def refresh_token(
                 session_data["username"], session_data["email"],
                 client_info["ip"], client_info["user_agent"]
             )
+            
+            await Sessions.invalidate(redis, account_id, "refresh")
+            await Sessions.create(
+                redis, account_id, "refresh",
+                session_data["username"], session_data["email"],
+                client_info["ip"], client_info["user_agent"]
+            )
         
-        await Sessions.update(redis, account_id, "refresh", client_info["ip"])
+        await Sessions.update(redis, account_id, "access", client_info["ip"])
         
-        set_auth_cookies(response, new_access_token, refresh_token)
+        await SessionSecurity.log_event(
+            redis, account_id, "token_refresh_success",
+            {"ip": client_info["ip"], "user_agent": client_info["user_agent"]},
+            client_info["ip"]
+        )
         
-        return {"access_token": new_access_token}
+        set_auth_cookies(response, new_access_token, new_refresh_token)
+        
+        return RefreshTokenResponse(
+            access_token=new_access_token,
+            refresh_token=new_refresh_token,
+            expires_in=settings.access_token_ttl_minutes * 60
+        )
         
     except HTTPException:
         raise
