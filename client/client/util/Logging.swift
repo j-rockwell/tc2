@@ -11,23 +11,23 @@ class AppLogger {
     }
     
     func info(_ message: String, file: String = #file, function: String = #function, line: Int = #line) {
-        prime(message, level: "INFO")
+        prime(message, level: "INFO", file: file, function: function, line: line)
     }
     
     func warning(_ message: String, file: String = #file, function: String = #function, line: Int = #line) {
-        prime(message, level: "WARNING")
+        prime(message, level: "WARNING", file: file, function: function, line: line)
     }
     
     func error(_ message: String, file: String = #file, function: String = #function, line: Int = #line) {
-        prime(message, level: "ERROR")
+        prime(message, level: "ERROR", file: file, function: function, line: line)
     }
     
     func fault(_ message: String, file: String = #file, function: String = #function, line: Int = #line) {
-        prime(message, level: "FAULT")
+        prime(message, level: "FAULT", file: file, function: function, line: line)
     }
     
-    private func prime(_ message: String, level: String) {
-        let msg = format(message, level: level, file: #file, function: #function, line: #line)
+    private func prime(_ message: String, level: String, file: String, function: String, line: Int) {
+        let msg = format(message, level: level, file: file, function: function, line: line)
         logger.debug("\(msg)")
         #if DEBUG
         print("[\(category.uppercased())] \(msg)")
