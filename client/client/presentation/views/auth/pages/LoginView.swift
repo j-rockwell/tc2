@@ -1,15 +1,23 @@
-//
-//  LoginView.swift
-//  client
-//
-//  Created by John Rockwell on 7/27/25.
-//
-
 import SwiftUI
 
 struct LoginView: View {
+    @State private var email = ""
+    @State private var password = ""
+    
     var body: some View {
-        Text(/*@START_MENU_TOKEN@*/"Hello, World!"/*@END_MENU_TOKEN@*/)
+        VStack {
+            VStack(spacing: Spacing.Semantic.inputGroup) {
+                InputField("Email", text: $email, type: .email, errorMessage: nil)
+                InputField("Password", text: $password, type: .password, errorMessage: nil)
+            }
+            
+            Spacer()
+            
+            VStack(spacing: Spacing.Semantic.buttonGroup) {
+                Button("Sign in", action: {}).buttonStyle(PrimaryButtonStyle())
+                Button("Forgot Password", action: {}).buttonStyle(SecondaryButtonStyle())
+            }
+        }.padding()
     }
 }
 

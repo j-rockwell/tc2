@@ -47,8 +47,74 @@ class AuthenticationManager: ObservableObject {
         validateSession()
     }
     
-    func performSignIn() async {
-        
+    func performSignIn(email: String, password: String) async {
+        isLoading = true
+        clearError()
+            
+        do {
+            let loginRequest = LoginRequest(email: email, password: password)
+            let response = try await withCheckedThrowingContinuation { continuation in
+                networkService.login(loginRequest)
+                    .sink(
+                        receiveCompletion: { completion in
+                            if case .failure(let error) = completion {
+                                continuation.resume(throwing: error)
+                            }
+                        },
+                        receiveValue: { response in
+                            continuation.resume(returning: response)
+                        }
+                    )
+                    .store(in: &cancellables)
+                }
+                
+                tokenService.set(
+                    accessToken: response.accessToken,
+                    refreshToken: response.refreshToken
+                )
+                
+                await MainActor.run {
+                    self.account = Account(
+                        id: response.data.id,
+                        username: response.data.username,
+                        email: response.data.email!,
+                        profile: nil,
+                        bio: nil,
+                        metadata: nil
+                    )
+                    self.isAuthenticated = true
+                    self.initRefreshTask()
+                }
+                
+                Task {
+                    try? await fetchAccount()
+                }
+        } catch NetworkError.unauthorized {
+            await MainActor.run {
+                self.authError = "Invalid email or password"
+                self.isAuthenticated = false
+            }
+        } catch NetworkError.httpError(423) {
+            await MainActor.run {
+                self.authError = "Account temporarily locked due to too many failed attempts"
+                self.isAuthenticated = false
+            }
+        } catch NetworkError.httpError(429) {
+            await MainActor.run {
+                self.authError = "Too many login attempts. Please try again later"
+                self.isAuthenticated = false
+            }
+        } catch NetworkError.httpError(403) {
+            await MainActor.run {
+                self.authError = "Additional verification required"
+                self.isAuthenticated = false
+            }
+        } catch {
+            await MainActor.run {
+                self.authError = "An error occurred. Please try again"
+                self.isAuthenticated = false
+            }
+        }
     }
     
     func performSignOut() async {

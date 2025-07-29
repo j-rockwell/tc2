@@ -9,9 +9,17 @@ struct AppViewCoordinator: View {
             if !isInit {
                 SplashView()
                     .environmentObject(authManager)
+                    .transition(.asymmetric(
+                        insertion: .move(edge: .trailing),
+                        removal: .move(edge: .leading)
+                    ))
             } else if authManager.isAuthenticated {
                 NavigationView()
                     .environmentObject(authManager)
+                    .transition(.asymmetric(
+                        insertion: .move(edge: .leading),
+                        removal: .move(edge: .trailing)
+                    ))
             } else {
                 AuthFlowView()
                     .environmentObject(authManager)
@@ -20,6 +28,7 @@ struct AppViewCoordinator: View {
         .onAppear {
             initApp()
         }
+        .animation(.easeInOut(duration: 0.3), value: authManager.isAuthenticated)
     }
     
     private func initApp() {

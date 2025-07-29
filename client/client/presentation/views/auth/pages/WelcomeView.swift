@@ -1,15 +1,24 @@
-//
-//  WelcomeView.swift
-//  client
-//
-//  Created by John Rockwell on 7/27/25.
-//
-
 import SwiftUI
 
 struct WelcomeView: View {
     var body: some View {
-        Text(/*@START_MENU_TOKEN@*/"Hello, World!"/*@END_MENU_TOKEN@*/)
+        VStack {
+            Spacer()
+            
+            Text("Training Club")
+                .font(.largeTitle)
+                .fontWeight(.bold)
+            
+            Spacer()
+            
+            VStack(spacing: Spacing.Semantic.buttonGroup) {
+                NavigationLink("Sign in", value: AuthFlowView.AuthView.login)
+                    .buttonStyle(PrimaryButtonStyle())
+                
+                NavigationLink("Create Account", value: AuthFlowView.AuthView.register)
+                    .buttonStyle(SecondaryButtonStyle())
+            }
+        }.padding()
     }
 }
 
