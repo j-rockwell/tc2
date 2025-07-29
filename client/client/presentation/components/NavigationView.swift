@@ -19,10 +19,10 @@ struct NavigationView: View {
                 }
             
             ProfileView()
-                    .tabItem {
-                      Image("HappySun")
-                      Text("Profile")
-                    }
+                .tabItem {
+                    Image("HappySun")
+                    Text("Profile")
+                }
         }
     }
 }

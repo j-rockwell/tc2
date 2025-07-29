@@ -19,7 +19,6 @@ protocol NetworkRequest {
     var queryItems: [URLQueryItem]? { get }
 }
 
-
 extension NetworkRequest {
     var headers: [String: String] {
         ["Content-Type": "application/json"]

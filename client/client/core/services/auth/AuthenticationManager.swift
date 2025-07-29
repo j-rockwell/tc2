@@ -1,8 +1,11 @@
 import Foundation
 import Combine
+import os
 
 @MainActor
 class AuthenticationManager: ObservableObject {
+    let logger = Logger(subsystem: "com.trainingclub.app", category: "networking")
+    
     @Published var isAuthenticated: Bool = false
     @Published var isLoading = true
     @Published var account: Account?
@@ -25,12 +28,14 @@ class AuthenticationManager: ObservableObject {
     }
     
     func checkStatus() {
+        logger.info("Checking authentication status...")
         isLoading = true
         clearError()
         defer { isLoading = false }
         
         guard tokenService.isAuthenticated() else {
             completeAuthentication(status: false)
+            logger.info("Not authenticated")
             return
         }
         
@@ -46,7 +51,7 @@ class AuthenticationManager: ObservableObject {
     }
     
     private func validateSession() {
-        
+        logger.info("Attempting to validate session...")
     }
     
     private func fetchAccount() async {
@@ -56,13 +61,31 @@ class AuthenticationManager: ObservableObject {
         }
         
         do {
+            let account = try await withCheckedThrowingContinuation { continuation in
+                networkService.fetchAccount()
+                    .sink(
+                        receiveCompletion: { completion in
+                            if case .failure(let error) = completion {
+                                continuation.resume(throwing: error)
+                            }
+                        },
+                        receiveValue: { account in
+                            continuation.resume(returning: account)
+                        }
+                    )
+                    .store(in: &cancellables)
+            }
             
+            await MainActor.run {
+                self.account = account
+                self.completeAuthentication(status: true)
+                self.initRefreshTask()
+            }
         } catch {
             if case NetworkError.unauthorized = error {
                 
             } else {
                 completeAuthentication(status: true)
-                
             }
         }
     }
@@ -74,6 +97,7 @@ class AuthenticationManager: ObservableObject {
         if !isAuthenticated {
             tokenService.clear()
             account = nil
+            refreshTask?.invalidate()
         }
     }
     
