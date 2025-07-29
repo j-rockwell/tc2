@@ -6,6 +6,7 @@ protocol NetworkServiceProtocol {
 }
 
 class NetworkService: NetworkServiceProtocol {
+    private let logger: AppLogger = AppLogger(subsystem: "dev.jrockwell.client", category: "networking")
     private let session: URLSession
     private let tokenService: TokenServiceProtocol
     
@@ -18,6 +19,12 @@ class NetworkService: NetworkServiceProtocol {
         guard let url = buildURL(for: request) else {
             return Fail(error: NetworkError.invalidURL).eraseToAnyPublisher()
         }
+        
+        logger.info("--- Start Network Request")
+        logger.info("Request url: \(url.absoluteString)")
+        logger.info("Request method: \(request.method.rawValue)")
+        logger.info("Request body: \(String(describing: String(data: request.body ?? Data(), encoding: .utf8)))")
+        logger.info("--- End Network Request")
         
         var urlRequest = URLRequest(url: url, timeoutInterval: NetworkConfig.timeout)
         urlRequest.httpMethod = request.method.rawValue
