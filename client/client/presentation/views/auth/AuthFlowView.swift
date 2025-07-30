@@ -21,6 +21,7 @@ struct AuthFlowView: View {
                         LoginView()
                             .navigationTitle("Sign in")
                             .navigationBarTitleDisplayMode(.large)
+                            .environmentObject(authManager)
                     case .register:
                         RegisterView()
                     }

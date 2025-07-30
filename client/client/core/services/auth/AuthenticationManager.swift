@@ -48,6 +48,8 @@ class AuthenticationManager: ObservableObject {
     }
     
     func performSignIn(email: String, password: String) async {
+        logger.info("Attempting to sign in...")
+        
         isLoading = true
         clearError()
             
@@ -111,9 +113,14 @@ class AuthenticationManager: ObservableObject {
             }
         } catch {
             await MainActor.run {
+                logger.error("Failed to perform authentication request: \(error)")
                 self.authError = "An error occurred. Please try again"
                 self.isAuthenticated = false
             }
+        }
+        
+        if authError != nil {
+            logger.error("Failed to perform authentication: \(authError!)")
         }
     }
     

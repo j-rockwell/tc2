@@ -30,7 +30,9 @@ public struct InputField: View {
                     case .email:
                         TextField(placeholder, text: $text)
                             .keyboardType(.emailAddress)
+                            .autocorrectionDisabled()
                             .autocapitalization(.none)
+                            .textInputAutocapitalization(.none)
                     case .password:
                         ZStack(alignment: .trailing) {
                             if isSecure {

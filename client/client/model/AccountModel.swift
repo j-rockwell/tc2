@@ -24,9 +24,9 @@ struct AccountBiometrics: Codable {
 }
 
 struct AccountMetadata: Codable {
-    let createdAt: String
-    let lastActive: String
-    let emailConfirmed: Bool
+    let createdAt: String?
+    let lastActive: String?
+    let emailConfirmed: Bool?
     
     enum CodingKeys: String, CodingKey {
         case createdAt = "created_at"

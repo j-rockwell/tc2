@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct LoginView: View {
+    @EnvironmentObject private var authManager: AuthenticationManager
     @State private var email = ""
     @State private var password = ""
     
@@ -14,10 +15,16 @@ struct LoginView: View {
             Spacer()
             
             VStack(spacing: Spacing.Semantic.buttonGroup) {
-                Button("Sign in", action: {}).buttonStyle(PrimaryButtonStyle())
+                Button("Sign in", action: signIn).buttonStyle(PrimaryButtonStyle())
                 Button("Forgot Password", action: {}).buttonStyle(SecondaryButtonStyle())
             }
         }.padding()
+    }
+    
+    private func signIn() {
+        Task {
+            await authManager.performSignIn(email: email, password: password)
+        }
     }
 }
 

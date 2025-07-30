@@ -2,8 +2,8 @@ import Foundation
 import Combine
 
 struct NetworkConfig {
-    static let devUrl = URL(string: "https://jsonplaceholder.typicode.com")!
-    static let prodUrl = URL(string: "")
+    static let devUrl = URL(string: "http://localhost:8000")!
+    static let prodUrl = URL(string: "http://localhost:8000") // TODO: Add prod url
     
     static let timeout: TimeInterval = 10
     
