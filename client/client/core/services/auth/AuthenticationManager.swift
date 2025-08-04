@@ -106,6 +106,11 @@ class AuthenticationManager: ObservableObject {
                 self.authError = "Additional verification required"
                 self.isAuthenticated = false
             }
+        } catch NetworkError.httpError(422) {
+            await MainActor.run {
+                self.authError = "Invalid password input"
+                self.isAuthenticated = false
+            }
         } catch {
             await MainActor.run {
                 logger.error("Failed to perform authentication request: \(error)")
