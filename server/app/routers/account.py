@@ -83,6 +83,8 @@ async def get_account_availability(
             detail="Internal server error"
         )
 
+
+
 @router.get(
     "/search",
     summary="Search accounts",
@@ -151,6 +153,8 @@ async def get_account_fuzzy(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error"
         )
+
+
 
 @router.get(
     "/{identifier}",
@@ -245,6 +249,8 @@ async def get_account(
             detail="Internal server error"
         )
 
+
+
 @router.get(
     "/me/profile",
     summary="Get current user profile",
@@ -319,6 +325,8 @@ async def get_profile(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error"
         )
+
+
 
 @router.post(
     "/",
@@ -441,6 +449,8 @@ async def create_account(
     except Exception as e:
         logger.error(f"Failed to create account: {e}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error")
+
+
 
 @router.delete(
     "/",
