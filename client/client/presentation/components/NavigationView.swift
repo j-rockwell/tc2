@@ -10,12 +10,17 @@ struct NavigationView: View {
             
             SearchView()
                 .tabItem {
-                    Label("Search", systemImage: "book")
+                    Label("Search", systemImage: "magnifyingglass")
                 }
             
             NewSessionView()
                 .tabItem {
-                    Label("Session", systemImage: "globe")
+                    Label("Session", systemImage: "dumbbell.fill")
+                }
+            
+            AnalyticsView()
+                .tabItem {
+                    Label("Analytics", systemImage: "chart.bar.xaxis")
                 }
             
             ProfileView()
@@ -23,7 +28,7 @@ struct NavigationView: View {
                     Image("HappySun")
                     Text("Profile")
                 }
-        }
+        }.padding(.horizontal)
     }
 }
 
