@@ -33,6 +33,11 @@ class AuthenticationManager: ObservableObject {
         isLoading = true
         clearError()
         
+        #if DEBUG
+        tokenService.clear()
+        logger.warning("Clearing stored tokens in debug mode")
+        #endif
+        
         defer {
             isLoading = false
             logger.info("Authentication status check complete.")
@@ -45,6 +50,73 @@ class AuthenticationManager: ObservableObject {
         }
         
         validateSession()
+    }
+    
+    func performSignUp(username: String, email: String, password: String) async {
+        logger.info("Attempting to register...")
+        
+        isLoading = true
+        clearError()
+        
+        do {
+            let registerRequest = RegisterRequest(username: username, email: email, password: password)
+            let response = try await withCheckedThrowingContinuation { continuation in
+                networkService.register(registerRequest)
+                    .sink(
+                        receiveCompletion: { completion in
+                            if case .failure(let error) = completion {
+                                continuation.resume(throwing: error)
+                            }
+                        },
+                        receiveValue: { response in
+                            continuation.resume(returning: response)
+                        }
+                    )
+                    .store(in: &cancellables)
+            }
+            
+            tokenService.set(
+                accessToken: response.accessToken,
+                refreshToken: response.refreshToken
+            )
+            
+            await MainActor.run {
+                self.account = Account(
+                    id: response.data.id,
+                    username: response.data.username,
+                    email: response.data.email!,
+                    profile: nil,
+                    bio: nil,
+                    metadata: nil
+                )
+                self.isAuthenticated = true
+                self.initRefreshTask()
+            }
+            
+            Task {
+                try? await fetchAccount()
+            }
+        } catch NetworkError.httpError(429) {
+            await MainActor.run {
+                self.authError = "Too many login attempts. Please try again later"
+                self.isAuthenticated = false
+            }
+        } catch NetworkError.httpError(403) {
+            await MainActor.run {
+                self.authError = "Additional verification required"
+                self.isAuthenticated = false
+            }
+        } catch {
+            await MainActor.run {
+                logger.error("Failed to perform authentication request: \(error)")
+                self.authError = "An error occurred. Please try again"
+                self.isAuthenticated = false
+            }
+        }
+        
+        if authError != nil {
+            logger.error("Failed to perform authentication: \(authError!)")
+        }
     }
     
     func performSignIn(email: String, password: String) async {

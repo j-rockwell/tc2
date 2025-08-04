@@ -24,6 +24,9 @@ struct AuthFlowView: View {
                             .environmentObject(authManager)
                     case .register:
                         RegisterView()
+                            .navigationTitle("Create Account")
+                            .navigationBarTitleDisplayMode(.large)
+                            .environmentObject(authManager)
                     }
                 }
         }

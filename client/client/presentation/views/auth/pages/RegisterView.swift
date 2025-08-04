@@ -1,15 +1,32 @@
-//
-//  RegisterView.swift
-//  client
-//
-//  Created by John Rockwell on 7/27/25.
-//
-
 import SwiftUI
 
 struct RegisterView: View {
+    @EnvironmentObject private var authManager: AuthenticationManager
+    @State private var username: String = ""
+    @State private var email: String = ""
+    @State private var password: String = ""
+    @State private var password2: String = ""
+    
     var body: some View {
-        Text(/*@START_MENU_TOKEN@*/"Hello, World!"/*@END_MENU_TOKEN@*/)
+        VStack {
+            VStack(spacing: Spacing.Semantic.inputGroup) {
+                InputField("Username", text: $username, type: .plain, errorMessage: nil)
+                InputField("Email", text: $email, type: .email, errorMessage: nil)
+                InputField("Password", text: $password, type: .password, errorMessage: nil)
+                InputField("Confirm Password", text: $password2, type: .password, errorMessage: nil)
+                
+            }
+            
+            Spacer()
+            
+            Button("Create Account", action: register).buttonStyle(PrimaryButtonStyle())
+        }.padding()
+    }
+    
+    private func register() {
+        Task {
+            await authManager.performSignUp(username: username, email: email, password: password)
+        }
     }
 }
 

@@ -51,7 +51,7 @@ struct RegisterNetworkRequest: NetworkRequest {
     
     let request: RegisterRequest
     
-    var path: String { "/account" }
+    var path: String { "/account/" }
     var method: HTTPMethod { .POST }
     var body: Data? {
         try? JSONEncoder().encode(request)
