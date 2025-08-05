@@ -4,6 +4,7 @@ from app.db.mongo import Mongo
 from app.db.redis import Redis
 from app.routers.account import router as AccountRouter
 from app.routers.auth import router as AuthRouter
+from app.routers.session import router as SessionRouter
 from app.config import settings
 
 logging.basicConfig(
@@ -27,6 +28,12 @@ app.include_router(
     AuthRouter,
     prefix="/auth",
     tags=["authentication"]
+)
+
+app.include_router(
+    SessionRouter,
+    prefix="/session",
+    tags=["session"]    
 )
 
 async def create_indexes():
