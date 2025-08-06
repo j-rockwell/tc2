@@ -6,8 +6,8 @@ from datetime import datetime
 from typing import Optional, Dict, Any, List
 from app.schema.messages.session import SessionOperationMessage
 from app.schema.session import ExerciseSession, ExerciseSessionStatus, ExerciseSessionInvite, ExerciseSessionInDB, ExerciseSessionParticipant, ExerciseSessionParticipantCursor
-from app.models.responses.session import SessionCreateResponse
-from app.models.requests.session import SessionInviteRequest
+from app.models.responses.session import SessionCreateResponse, SessionInviteAcceptResponse
+from app.models.requests.session import SessionInviteRequest, SessionInviteAcceptRequest
 from app.models.responses.base import ErrorResponse
 from app.db.mongo import Mongo
 from app.db.redis import Redis
@@ -164,3 +164,83 @@ async def send_session_invite(
     except Exception as e:
         logger.error(f"Failed to send session invitation: {e}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error")
+
+@router.post(
+    "/invite/accept",
+    status_code=status.HTTP_200_OK,
+    responses={
+        409: {"model": ErrorResponse, "description": "User already has an active session"},
+        404: {"model": ErrorResponse, "description": "Session or invitation to session not found"},
+    }
+)
+async def accept_session_invite(
+    req: SessionInviteAcceptRequest,
+    current_user: Dict[str, Any] = Depends(read_request_account_id),
+    db: Mongo = Depends(get_mongo)
+) -> SessionInviteAcceptResponse:
+    try:
+        account_id = current_user["id"]
+        session_id = req.session_id
+        
+        # check if user has an active session first
+        conflict = await db.find_one(
+            exercise_sessions_key,
+            {
+                "status": ExerciseSessionStatus.ACTIVE.value,
+                "$or": [
+                    { "owner_id": session_id },
+                    { "participants.id": account_id }
+                ]
+            }
+        )
+        if conflict:
+            raise HTTPException(status.HTTP_409_CONFLICT, detail="You already have an active exercise session")
+        
+        # get session attached to the invitation they are trying to accept
+        found_session = await db.find_one(
+            exercise_sessions_key,
+            {
+                "_id": ObjectId(session_id),
+                "status": ExerciseSessionStatus.ACTIVE.value
+            }
+        )
+        if not found_session:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Exercise session not found")
+        
+        session = ExerciseSessionInDB(**found_session)
+        
+        # check if user is invited to the session
+        if not any(inv.invited_id == account_id for inv in session.invites):
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No invitation found for account")
+        
+        new_participant = ExerciseSessionParticipant(
+            id=account_id,
+            color="#FFFFFF",
+        )
+        
+        update_result = await db.update_one(
+            exercise_sessions_key,
+            { "_id": ObjectId(session_id) },
+            {
+                "$push": {"participants": new_participant.dict()},
+                "$pull": {"invites": {"invited_id": account_id}},
+                "$set":  {"updated_at": datetime.utcnow()}
+            }
+        )
+        
+        if update_result["modified_count"] != 1:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to accept the invitation"
+            )
+        
+        res = SessionInviteAcceptResponse(
+            session=session,
+            participant=new_participant
+        )
+        
+        return res
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to accept session invitation: {e}")
