@@ -13,10 +13,5 @@ class SessionOperationType(str, Enum):
     UPDATE_PARTICIPANT = "update_participant"
 
 class SessionOperationMessage(BaseModel):
-    session_id: str
-    account_id: str
-    operation_type: SessionOperationType
-    timestamp: float
-    data: Dict[str, Any]
-    version: int
-    parent_version: Optional[int]
+    action: SessionOperationType
+    payload: Dict[str, Any]

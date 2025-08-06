@@ -1,0 +1,25 @@
+{
+    "operations": [
+        {
+            "__comment__": "Used to start a new session. Uses the account ID from the Auth token",
+            "action": "create_session"
+        },
+
+        {
+            "__comment__": "Used to invite someone to your session",
+            "action": "invite_session",
+            "payload": {
+                "session_id": "session-id-here",
+                "invited_id": "user-id-here"
+            }
+        },
+
+        {
+            "__comment__": "Used to join a session you've been invited to. Uses the account ID from the Auth token",
+            "action": "join_session",
+            "payload": {
+                "session_id": "session-id-here"
+            }
+        }
+    ]
+}

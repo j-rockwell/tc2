@@ -61,14 +61,23 @@ class Mongo:
         update: Dict[str, Any],
         upsert: bool = False
     ) -> Dict[str, Any]:
+        if any(key.startswith('$') for key in update):
+            update_doc = update
+        else:
+            update_doc = {'$set': update}
+
         result = await self.db[collection].update_one(
-            filter, {'$set': update}, upsert=upsert
+            filter,
+            update_doc,
+            upsert=upsert
         )
+        
         return {
             'matched_count': result.matched_count,
             'modified_count': result.modified_count,
             'upserted_id': result.upserted_id
         }
+
     
     async def replace_one(
         self,

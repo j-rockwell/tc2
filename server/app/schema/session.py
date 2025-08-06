@@ -1,4 +1,5 @@
 from enum import Enum
+from bson import ObjectId
 from typing import List, Optional, Union, Literal
 from pydantic import BaseModel, Field
 from datetime import datetime
@@ -11,9 +12,10 @@ class ExerciseType(str, Enum):
     TIME = "time"
     DISTANCE = "distance"
 
-class SessionType(str, Enum):
-    INDIVIDUAL = "individual"
-    COLLABORATE = "collaborate"
+class ExerciseSessionStatus(str, Enum):
+    DRAFT = "draft",
+    ACTIVE = "active",
+    COMPLETE = "complete"
 
 class WeightUnit(str, Enum):
     KILOGRAM = "kg"
@@ -112,12 +114,26 @@ class ExerciseSessionParticipant(BaseModel):
     color: str = Field(..., description="Hex color code for participant")
     cursor: Optional[ExerciseSessionParticipantCursor] = Field(None, description="Participant's current cursor position")
 
+class ExerciseSessionInvite(BaseModel):
+    invited_id: str = Field(..., description="Account ID of the user that has been invited")
+    invited_by: str = Field(..., description="Account ID of the user that sent the invite")
+    invited_at: datetime = Field(default_factory=datetime.utcnow)
+    
 class ExerciseSession(BaseModel):
-    id: str = Field(..., description="Session Unique ID")
     owner_id: str = Field(..., description="Session Owner ID")
+    status: ExerciseSessionStatus = Field(ExerciseSessionStatus.DRAFT, description="This sessions current status")
     participants: List[ExerciseSessionParticipant] = Field(default_factory=list, description="Participants in this Session")
+    invites: List[ExerciseSessionInvite] = Field(default_factory=list, description="List of users that have been invited to this session")
     created_at: datetime = Field(default_factory=datetime.utcnow, description="Timestamp of session creation")
     updated_at: datetime = Field(default_factory=datetime.utcnow, description="Timestamp of last session update")
     
     class Config:
         orm_mode = True
+
+class ExerciseSessionInDB(ExerciseSession):
+    id: str = Optional[Field(alias="_id")]
+    
+    class Config:
+        allow_population_by_field_name = True
+        json_encoders = { ObjectId: str }
+        from_attributes = True
