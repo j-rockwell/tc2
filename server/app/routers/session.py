@@ -11,7 +11,7 @@ from app.models.requests.session import SessionInviteRequest, SessionInviteAccep
 from app.models.responses.base import ErrorResponse
 from app.db.mongo import Mongo
 from app.db.redis import Redis
-from app.deps import get_mongo, read_request_account_id
+from app.deps import get_mongo, read_request_account_id, read_ws_account_id
 import logging
 
 router = APIRouter()
@@ -21,11 +21,15 @@ security = HTTPBearer()
 exercise_sessions_key = "exercise_sessions"
 
 @router.websocket("/channel")
-async def session_channel(websocket: WebSocket):
+async def session_channel(
+    websocket: WebSocket,
+    current_user: Dict[str, Any] = Depends(read_ws_account_id),
+):
     await websocket.accept()
     try:
         while True:
             payload = await websocket.receive_json()
+            account_id = current_user["id"]
             
             try:
                 msg = SessionOperationMessage(**payload)
@@ -33,12 +37,13 @@ async def session_channel(websocket: WebSocket):
                 await websocket.send_json({"error": "invalid format", "details": e.errors()})
                 continue
             
-            logger.debug("session=%s account=%s data=%r", msg.session_id, msg.account_id, msg.data)
+            logger.debug("action=%s payload=%r", msg.action, msg.payload)
             
             await websocket.send_json({
                 "status": "ok",
-                "session_id": msg.session_id,
-                "received_at": msg.timestamp
+                "sent_by": account_id,
+                "action": msg.action,
+                "payload": msg.payload
             })
     except WebSocketDisconnect:
         logger.info("Websocket Disconnected")

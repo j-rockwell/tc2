@@ -1,5 +1,5 @@
 from bson import ObjectId
-from fastapi import Request, HTTPException, status, Request, Cookie, Depends
+from fastapi import Request, WebSocket, HTTPException, status, Request, WebSocketException, Cookie, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from typing import Optional, Dict, Any
 from app.db.mongo import Mongo
@@ -15,6 +15,12 @@ def get_mongo(req: Request) -> Mongo:
 
 def get_redis(req: Request) -> Redis:
     return req.app.state.redis
+
+def get_ws_mongo(websocket: WebSocket) -> Mongo:
+    return websocket.app.state.mongodb
+
+def get_ws_redis(websocket: WebSocket) -> Redis:
+    return websocket.app.state.redis
 
 async def read_request_account_id(
     request: Request,
@@ -131,3 +137,67 @@ async def read_request_account_id_optional(
         return await read_request_account_id(request, db, redis, credentials, access_token)
     except HTTPException:
         return None
+
+async def read_ws_account_id(
+    websocket: WebSocket,
+    db: Mongo           = Depends(get_ws_mongo),
+    redis: Redis        = Depends(get_ws_redis),
+    access_token: Optional[str] = Cookie(None),
+) -> Dict[str, Any]:
+    auth: Optional[str] = websocket.headers.get("authorization")
+    token = None
+    if auth and auth.startswith("Bearer "):
+        token = auth.removeprefix("Bearer ").strip()
+    elif access_token:
+        token = access_token
+
+    if not token:
+        await websocket.close(code=1008)
+        raise WebSocketException(code=1008)
+
+    payload = Tokenizer.decode_access_token(token)
+    if not payload or payload.get("type") != "access":
+        await websocket.close(code=1008)
+        raise WebSocketException(code=1008)
+
+    account_id = payload.get("sub")
+    if not account_id:
+        await websocket.close(code=1008)
+        raise WebSocketException(code=1008)
+
+    if not await Sessions.is_valid(redis, account_id, "access"):
+        await websocket.close(code=1008)
+        raise WebSocketException(code=1008)
+    
+    client_ip = websocket.client.host
+    client_ua = websocket.headers.get("user-agent", "")
+    suspicion = await SessionSecurity.detect_suspicious(
+        redis, account_id, client_ip, client_ua
+    )
+    if suspicion["score"] > 70:
+        await SessionSecurity.log_event(
+            redis, account_id, "high_suspicion_ws",
+            suspicion, client_ip
+        )
+        await websocket.close(code=1008)
+        raise WebSocketException(code=1008)
+
+    await Sessions.update(redis, account_id, "access", client_ip)
+
+    user_cache_key = f"user:{account_id}"
+    user_data      = await redis.get(user_cache_key, decode_json=True)
+    if not user_data:
+        acct = await db.find_one("accounts", {"_id": ObjectId(account_id)})
+        if not acct:
+            await Sessions.invalidate(redis, account_id, "access")
+            await websocket.close(code=1008)
+            raise WebSocketException(code=1008)
+        user_data = {
+            "id":      str(acct["_id"]),
+            "username": acct["username"],
+            "email":    acct["email"],
+            "email_confirmed": acct.get("metadata", {}).get("email_confirmed", False)
+        }
+        await redis.setex(user_cache_key, 3600, user_data)
+
+    return user_data
