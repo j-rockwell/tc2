@@ -4,7 +4,7 @@ from pydantic import ValidationError
 from bson import ObjectId
 from datetime import datetime
 from typing import Optional, Dict, Any, List
-from app.schema.messages.session import SessionOperationMessage
+from app.schema.messages.session import SessionOperationMessage, SessionOperationType, AddExercisePayload
 from app.schema.session import ExerciseSession, ExerciseSessionStatus, ExerciseSessionInvite, ExerciseSessionInDB, ExerciseSessionParticipant, ExerciseSessionParticipantCursor
 from app.models.responses.session import SessionCreateResponse, SessionInviteAcceptResponse
 from app.models.requests.session import SessionInviteRequest, SessionInviteAcceptRequest
@@ -28,23 +28,25 @@ async def session_channel(
     await websocket.accept()
     try:
         while True:
-            payload = await websocket.receive_json()
+            payload: dict = await websocket.receive_json()
             account_id = current_user["id"]
             
             try:
-                msg = SessionOperationMessage(**payload)
+                msg = SessionOperationMessage.parse_obj(payload)
             except ValidationError as e:
                 await websocket.send_json({"error": "invalid format", "details": e.errors()})
                 continue
             
             logger.debug("action=%s payload=%r", msg.action, msg.payload)
             
-            await websocket.send_json({
-                "status": "ok",
-                "sent_by": account_id,
-                "action": msg.action,
-                "payload": msg.payload
-            })
+            if msg.action == SessionOperationType.ADD_EXERCISE:
+                try:
+                    add_exercise_payload = AddExercisePayload.parse_obj(msg.payload)
+                    await websocket.send_json({ "message:": f"adding {add_exercise_payload.exercise} to session"})
+                except ValidationError as e:
+                    await websocket.send_json({ "message": "invalid payload" })
+            else:
+                await websocket.send_json({ "message": "unsupported message type" })
     except WebSocketDisconnect:
         logger.info("Websocket Disconnected")
 

@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Extra
 from typing import Any, Dict, Optional
 from enum import Enum
 
@@ -15,3 +15,9 @@ class SessionOperationType(str, Enum):
 class SessionOperationMessage(BaseModel):
     action: SessionOperationType
     payload: Dict[str, Any]
+
+class AddExercisePayload(BaseModel):
+    exercise: str
+    
+    class Config:
+        extra = Extra.forbid
