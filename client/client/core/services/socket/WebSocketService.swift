@@ -15,8 +15,7 @@ protocol WebSocketServiceProtocol: ObservableObject {
     func observeConnectionStatus(for connectionId: String) -> AnyPublisher<Bool, Never>
 }
 
-@MainActor
-class WebSocketService: ObservableObject {
+class WebSocketService: WebSocketServiceProtocol {
     private let logger = AppLogger(subsystem: "dev.jrockwell.client", category: "websocket")
     
     @Published private(set) var connections: [String: WebSocketConnection]

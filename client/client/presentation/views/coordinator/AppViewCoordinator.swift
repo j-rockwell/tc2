@@ -2,6 +2,8 @@ import SwiftUI
 
 struct AppViewCoordinator: View {
     @StateObject private var authManager = AuthenticationManager()
+    @StateObject private var exerciseSessionManager = ExerciseSessionManager()
+    
     @State private var isInit = false
     
     var body: some View {
@@ -16,6 +18,7 @@ struct AppViewCoordinator: View {
             } else if authManager.isAuthenticated {
                 NavigationView()
                     .environmentObject(authManager)
+                    .environmentObject(exerciseSessionManager)
                     .transition(.asymmetric(
                         insertion: .move(edge: .leading),
                         removal: .move(edge: .trailing)

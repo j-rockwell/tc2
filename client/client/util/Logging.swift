@@ -26,9 +26,27 @@ class AppLogger {
         prime(message, level: "FAULT", file: file, function: function, line: line)
     }
     
+    func debug(_ message: String, file: String = #file, function: String = #function, line: Int = #line) {
+        prime(message, level: "DEBUG", file: file, function: function, line: line)
+    }
+    
     private func prime(_ message: String, level: String, file: String, function: String, line: Int) {
         let msg = format(message, level: level, file: file, function: function, line: line)
         logger.debug("\(msg)")
+        
+        switch level {
+            case "INFO":
+                logger.info("\(msg)")
+            case "WARNING":
+                logger.warning("\(msg)")
+            case "ERROR":
+                logger.error("\(msg)")
+            case "FAULT":
+                logger.fault("\(msg)")
+            default:
+                logger.debug("\(msg)")
+        }
+        
         #if DEBUG
         print("[\(category.uppercased())] \(msg)")
         #endif
