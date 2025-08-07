@@ -91,13 +91,9 @@ async def create_session(
             ]
         )
         
-        inserted = await db.insert("exercise_sessions", created_session.dict(by_alias=True, exclude_none=True))
-        session_id = str(inserted)
+        await db.insert("exercise_sessions", created_session.dict(by_alias=True, exclude_none=True))
         
-        res = SessionCreateResponse(
-            id=session_id
-        )
-        
+        res = SessionCreateResponse(session=created_session)
         return res
     except HTTPException:
         raise

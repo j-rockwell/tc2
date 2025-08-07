@@ -2,7 +2,7 @@ from pydantic import BaseModel
 from app.schema.session import ExerciseSession, ExerciseSessionParticipant
 
 class SessionCreateResponse(BaseModel):
-    id: str
+    session: ExerciseSession
 
 class SessionInviteAcceptResponse(BaseModel):
     session: ExerciseSession
