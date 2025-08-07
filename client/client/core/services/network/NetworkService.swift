@@ -13,6 +13,7 @@ class NetworkService: NetworkServiceProtocol {
     init(session: URLSession = .shared, tokenService: TokenServiceProtocol = TokenService()) {
         self.session = session
         self.tokenService = tokenService
+        logger.info("NetworkService::init")
     }
     
     func request<T>(_ request: T) -> AnyPublisher<T.Response, NetworkError> where T : NetworkRequest {
