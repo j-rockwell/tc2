@@ -1,18 +1,36 @@
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, HTTPException, status, Response, Depends
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, HTTPException, status, Depends
 from fastapi.security import HTTPBearer
 from pydantic import ValidationError
 from bson import ObjectId
 from datetime import datetime
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any
 from app.schema.messages.session import SessionOperationMessage, SessionOperationType, AddExercisePayload
 from app.schema.session import ExerciseSession, ExerciseSessionStatus, ExerciseSessionInvite, ExerciseSessionInDB, ExerciseSessionParticipant, ExerciseSessionParticipantCursor
-from app.models.responses.session import SessionCreateResponse, SessionInviteAcceptResponse
+from app.models.responses.session import SessionCreateResponse, SessionInviteAcceptResponse, SessionQueryResponse
 from app.models.requests.session import SessionInviteRequest, SessionInviteAcceptRequest
 from app.models.responses.base import ErrorResponse
 from app.db.mongo import Mongo
 from app.db.redis import Redis
 from app.deps import get_mongo, read_request_account_id, read_ws_account_id
 import logging
+
+# SOCKET
+# /channel          - Access to communication channel for exercise sessions
+#
+# GET
+# /me?query=        - Search for exercise sessions specific to the querying user
+# /search?query=    - Search for exercise sessions by query params
+# /state/me         - Get session state to the querying user
+# /state/:id        - Get all session states for a specific session
+#
+# POST
+# /                 - Create a new session
+# /invite           - Invite a user to your current active session
+# /invite/accept    - Accept an invitation to join an active session
+# /invite/decline   - Decline an invitation to join an active session
+#
+# DELETE
+# /:id              - Delete an exercise session if you have access to it
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -49,6 +67,105 @@ async def session_channel(
                 await websocket.send_json({ "message": "unsupported message type" })
     except WebSocketDisconnect:
         logger.info("Websocket Disconnected")
+
+
+
+@router.get(
+    "/me",
+    status_code=status.HTTP_200_OK,
+    response_model=SessionQueryResponse,
+)
+async def get_own_session(
+    status_: Optional[ExerciseSessionStatus] = None,
+    limit: int = 20,
+    skip: int = 0,
+    current_user: Dict[str, Any] = Depends(read_request_account_id),
+    db: Mongo = Depends(get_mongo),
+) -> SessionQueryResponse:
+    try:
+        account_id = current_user["id"]
+        filter: Dict[str, Any] = {
+            "$or": [{"owner_id": account_id}, {"participants.id": account_id}]
+        }
+        if status_:
+            filter["status"] = status_.value
+
+        items = await db.find_many(
+            exercise_sessions_key,
+            filter,
+            sort=[("updated_at", -1), ("_id", -1)],
+            skip=skip,
+            limit=min(max(limit, 1), 50),
+        )
+
+        if not items:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, detail="No sessions found")
+
+        return SessionQueryResponse(data=[ExerciseSessionInDB(**i) for i in items])
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to fetch own sessions: {e}")
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error")
+
+
+
+@router.get(
+    "/search",
+    status_code=status.HTTP_200_OK,
+    response_model=SessionQueryResponse,
+)
+async def get_sessions(
+    participant_id: Optional[str] = None,
+    status_: Optional[ExerciseSessionStatus] = None,
+    limit: int = 20,
+    skip: int = 0,
+    db: Mongo = Depends(get_mongo),
+) -> SessionQueryResponse:
+    try:
+        filter: Dict[str, Any] = {}
+        if participant_id:
+            filter["$or"] = [
+                {"owner_id": participant_id},
+                {"participants.id": participant_id},
+            ]
+        if status_:
+            filter["status"] = status_.value
+
+        items = await db.find_many(
+            exercise_sessions_key,
+            filter,
+            sort=[("updated_at", -1), ("_id", -1)],
+            skip=skip,
+            limit=min(max(limit, 1), 50),
+        )
+
+        if not items:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, detail="No sessions found")
+
+        return SessionQueryResponse(data=[ExerciseSessionInDB(**i) for i in items])
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to perform session query: {e}")
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error")
+
+
+
+@router.get(
+    "/state/me"
+)
+async def get_own_state():
+    pass
+
+
+
+@router.get(
+    "/state/{identifier}"
+)
+async def get_state():
+    pass
+
 
 
 @router.post(
@@ -100,6 +217,8 @@ async def create_session(
     except Exception as e:
         logger.error(f"Failed to create session: {e}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error")
+
+
 
 @router.post(
     "/invite",
@@ -167,6 +286,8 @@ async def send_session_invite(
     except Exception as e:
         logger.error(f"Failed to send session invitation: {e}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error")
+
+
 
 @router.post(
     "/invite/accept",
@@ -247,3 +368,11 @@ async def accept_session_invite(
         raise
     except Exception as e:
         logger.error(f"Failed to accept session invitation: {e}")
+
+
+@router.delete(
+    "/delete/{identifier}",
+    status_code=status.HTTP_200_OK,
+)
+async def decline_session_invite():
+    pass

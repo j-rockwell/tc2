@@ -1,5 +1,9 @@
 from pydantic import BaseModel
-from app.schema.session import ExerciseSession, ExerciseSessionParticipant
+from typing import List
+from app.schema.session import ExerciseSession, ExerciseSessionParticipant, ExerciseSessionInDB
+
+class SessionQueryResponse(BaseModel):
+    data: List[ExerciseSessionInDB]
 
 class SessionCreateResponse(BaseModel):
     session: ExerciseSession

@@ -13,8 +13,8 @@ class ExerciseType(str, Enum):
     DISTANCE = "distance"
 
 class ExerciseSessionStatus(str, Enum):
-    DRAFT = "draft",
-    ACTIVE = "active",
+    DRAFT = "draft"
+    ACTIVE = "active"
     COMPLETE = "complete"
 
 class WeightUnit(str, Enum):
@@ -131,9 +131,11 @@ class ExerciseSession(BaseModel):
         orm_mode = True
 
 class ExerciseSessionInDB(ExerciseSession):
-    id: str = Optional[Field(alias="_id")]
-    
+    id: Optional[str] = Field(default=None, alias="_id")
+
     class Config:
         allow_population_by_field_name = True
-        json_encoders = { ObjectId: str }
-        from_attributes = True
+        arbitrary_types_allowed = True
+        json_encoders = {
+            ObjectId: str,
+        }
