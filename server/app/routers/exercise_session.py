@@ -1,18 +1,17 @@
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, HTTPException, status, Depends
+from fastapi import APIRouter, HTTPException, status, Depends
 from fastapi.security import HTTPBearer
-from pydantic import ValidationError
 from bson import ObjectId
 from datetime import datetime
 from typing import Optional, Dict, Any
-from app.schema.messages.session import SessionOperationMessage, SessionOperationType, AddExercisePayload
+import logging
+
 from app.schema.session import ExerciseSession, ExerciseSessionStatus, ExerciseSessionInvite, ExerciseSessionInDB, ExerciseSessionParticipant, ExerciseSessionParticipantCursor
 from app.models.responses.session import SessionCreateResponse, SessionInviteAcceptResponse, SessionQueryResponse
 from app.models.requests.session import SessionInviteRequest, SessionInviteAcceptRequest
 from app.models.responses.base import ErrorResponse
 from app.db.mongo import Mongo
 from app.db.redis import Redis
-from app.deps import get_mongo, read_request_account_id, read_ws_account_id
-import logging
+from app.deps import get_mongo, read_request_account_id
 
 # SOCKET
 # /channel          - Access to communication channel for exercise sessions
@@ -37,38 +36,6 @@ logger = logging.getLogger(__name__)
 security = HTTPBearer()
 
 exercise_sessions_key = "exercise_sessions"
-
-@router.websocket("/channel")
-async def session_channel(
-    websocket: WebSocket,
-    current_user: Dict[str, Any] = Depends(read_ws_account_id),
-):
-    await websocket.accept()
-    try:
-        while True:
-            payload: dict = await websocket.receive_json()
-            account_id = current_user["id"]
-            
-            try:
-                msg = SessionOperationMessage.parse_obj(payload)
-            except ValidationError as e:
-                await websocket.send_json({"error": "invalid format", "details": e.errors()})
-                continue
-            
-            logger.debug("action=%s payload=%r", msg.action, msg.payload)
-            
-            if msg.action == SessionOperationType.ADD_EXERCISE:
-                try:
-                    add_exercise_payload = AddExercisePayload.parse_obj(msg.payload)
-                    await websocket.send_json({ "message:": f"adding {add_exercise_payload.exercise} to session"})
-                except ValidationError as e:
-                    await websocket.send_json({ "message": "invalid payload" })
-            else:
-                await websocket.send_json({ "message": "unsupported message type" })
-    except WebSocketDisconnect:
-        logger.info("Websocket Disconnected")
-
-
 
 @router.get(
     "/me",
