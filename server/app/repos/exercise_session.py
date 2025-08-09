@@ -158,6 +158,15 @@ class ExerciseSessionRepository:
         await self.redis.set(key, raw, ex=3600)
         
         return new_state
+    
+    async def update_session_state(self, new_state: ExerciseSessionState) -> Optional[ExerciseSessionState]:
+        session = await self.get_session_by_id(new_state.session_id)
+        if not session:
+            return None
+        
+        key = build_state_key(new_state.session_id, new_state.account_id)
+        raw = new_state.json(exclude_none=True)
+        self.redis.set(key, raw, ex=3600)
 
     async def delete_session(self, session_id: str) -> bool:
         res = await self.mongo.delete_by_id(collection=collection_name, document_id=session_id)
