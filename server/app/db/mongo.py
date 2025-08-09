@@ -12,7 +12,6 @@ class MongoError(Exception):
     """Custom exception for MongoDB operations"""
     pass
 
-
 class Mongo:
     def __init__(self, uri: str, db_name: str, auto_convert_objectids: bool = True):
         logger.info("Initializing Mongo Instance")

@@ -1,0 +1,134 @@
+{
+    "___session___": "",
+    "id": "session_id",
+    "name": "W1D1 Chest",
+    "status": "ACTIVE",
+    "created_at": "datetime",
+    "updated_at": "datetime",
+    "participants": [
+        {
+            "id": "user_1_id",
+            "color": "#F2F2F2",
+            "cursor": {
+                "exercise_id": "exercise_1_id",
+                "exercise_set_id": "exercise_1_set_2_id"
+            }
+        },
+        {
+            "id": "user_2_id",
+            "color": "#F2F2F2",
+            "cursor": {
+                "exercise_id": "exercise_2_id",
+                "exercise_set_id": "exercise_2_set_1_id"
+            }
+        }
+    ],
+    "invites": [
+        {
+            "invited_by": "inviting_user_id",
+            "invited": "invited_user_id",
+            "expires": "datetime_here"
+        }
+    ],
+
+    "__session_state__": "",
+    "session_id": "session_id",
+    "account_id": "user_1_id",
+    "version": 4,
+    "items": [
+        {
+            "id": "exercise_1_id",
+            "order": 1,
+            "participants": [
+                "user_1_id",
+                "user_2_id"
+            ],
+            "type": "SINGLE",
+            "rest": 90,
+            "exercise_metadata": {
+                "id": "internal_id",
+                "name": "Bench Press",
+                "type": "WEIGHT_REPS"
+            },
+            "sets": [
+                {
+                    "id": "exercise_1_set_1_id",
+                    "order": 1,
+                    "metrics": {
+                        "reps": 5,
+                        "weight": {
+                            "value": 135,
+                            "unit": "LB"
+                        }
+                    },
+                    "type": "WARMUP",
+                    "complete": true
+                },
+                {
+                    "id": "exercise_1_set_2_id",
+                    "order": 2,
+                    "metrics": {
+                        "reps": 8,
+                        "weight": {
+                            "value": 95,
+                            "unit": "LB"
+                        }
+                    },
+                    "type": "DROPSET",
+                    "complete": true
+                }
+            ]
+        },
+
+        {
+            "id": "exercise_2_id",
+            "order": 2,
+            "type": "COMPOUND",
+            "rest": 90,
+            "participants": [
+                "user_2_id"
+            ],
+            "exercise_metadata": [
+                {
+                    "id": "internal_id",
+                    "name": "Incline Bench Press",
+                    "type": "WEIGHT_REPS"
+                },
+                {
+                    "id": "internal_id_2",
+                    "name": "Hammer Curl",
+                    "type": "WEIGHT_REPS"
+                }
+            ],
+            "sets": [
+                {
+                    "id": "exercise_2_set_1_id",
+                    "exercise_id": "internal_id",
+                    "order": 1,
+                    "metrics": {
+                        "reps": 5,
+                        "weight": {
+                            "value": 135,
+                            "unit": "LB"
+                        }
+                    },
+                    "type": "WORKING",
+                    "status": "INCOMPLETE"
+                },
+                {
+                    "id": "exercise_3_set_1_id",
+                    "parent": "exercise_2_set_1_id",
+                    "metrics": {
+                        "reps": 8,
+                        "weight": {
+                            "value": 30,
+                            "unit": "LB"
+                        }
+                    },
+                    "type": "SUPERSET",
+                    "status": "INCOMPLETE"
+                }
+            ]
+        }
+    ]
+}
