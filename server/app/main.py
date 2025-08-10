@@ -9,6 +9,7 @@ from app.routers.account import router as AccountRouter
 from app.routers.auth import router as AuthRouter
 from app.routers.exercise_session import router as ExerciseSessionRouter
 from app.routers.exercise_session_ws import router as ExerciseSessionWebSocketRouter
+from app.routers.exercise import router as ExerciseRouter
 from app.routers.exercise_session_ws import init_esms, cleanup_esms
 from app.config import settings
 
@@ -88,8 +89,9 @@ app = FastAPI(
 
 app.include_router(AccountRouter, prefix="/account", tags=["account"])
 app.include_router(AuthRouter, prefix="/auth", tags=["authentication"])
-app.include_router(ExerciseSessionRouter, prefix="/session", tags=["session"])
-app.include_router(ExerciseSessionWebSocketRouter, prefix="/session/ws", tags=["session socket"])
+app.include_router(ExerciseSessionRouter, prefix="/session", tags=["exercise session"])
+app.include_router(ExerciseSessionWebSocketRouter, prefix="/session/ws", tags=["exercise session socket"])
+app.include_router(ExerciseRouter, prefix="/exercise", tags=["exercises"])
 
 async def create_indexes(app: FastAPI):
     await app.state.mongodb.db.accounts.create_index("email", unique=True)
