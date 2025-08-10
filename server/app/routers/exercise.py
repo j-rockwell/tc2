@@ -1,16 +1,16 @@
-from fastapi import APIRouter, HTTPException, status, Depends
+from fastapi import APIRouter, HTTPException, status, Query, Depends
 from fastapi.security import HTTPBearer
-from typing import Dict, Any, Optional
-from datetime import datetime, timezone
+from typing import Dict, Any, List
 import logging
 
 from app.deps import read_request_account_id, get_mongo, get_redis
 from app.db.mongo import Mongo
 from app.db.redis import Redis
 from app.repos.exercise import ExerciseMetaRepository
-from app.schema.exercise import ExerciseMetaInDB, ExerciseMeta
+from app.schema.exercise import ExerciseMetaInDB, ExerciseMuscleGroup, ExerciseEquipment
 from app.models.requests.exercise import ExerciseMetaCreateRequest
 from app.util.sanitize import sanitize_str, sanitize_str_list
+from app.models.responses.base import ErrorResponse
 
 # GET
 # /meta/id/{identifier}     - Get exercise by ID
@@ -32,34 +32,114 @@ logger = logging.getLogger(__name__)
 security = HTTPBearer()
 
 @router.get(
-    "/meta/id/{identifier}"
+    "/meta/id/{identifier}",
+    response_model=ExerciseMetaInDB,
+    summary="Get exercise meta by ID",
+    responses={
+        404: {"model": ErrorResponse, "description": "Exercise not found"}
+    }
 )
 async def get_exercise_meta_by_id(
     identifier: str,
     mongo: Mongo = Depends(get_mongo),
     redis: Redis = Depends(get_redis),
-):
-    repo = ExerciseMetaRepository(mongo=mongo, redis=redis)
-    res = await repo.get_exercise_by_id(identifier)
-    if not res:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Exercise not found")    
-    return res
+) -> ExerciseMetaInDB:
+    try:
+        repo = ExerciseMetaRepository(mongo=mongo, redis=redis)
+        res = await repo.get_exercise_by_id(identifier)
+        if not res:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Exercise not found")    
+        return res
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get exercise by ID: {identifier}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error"
+        )
 
 @router.get(
-    "/meta/name/{name}"
+    "/meta/name/{name}",
+    response_model=ExerciseMetaInDB,
+    summary="Get exercise by name",
+    responses={
+        404: {"model": ErrorResponse, "description": "Exercise not found"}
+    }
 )
 async def get_exercise_meta_by_name(
     name: str,
     mongo: Mongo = Depends(get_mongo),
     redis: Redis = Depends(get_redis),
 ):
-    sanitized = sanitize_str(name)
-    repo = ExerciseMetaRepository(mongo=mongo, redis=redis)
-    res = await repo.get_exercise_by_name(sanitized)
-    
-    if not res:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Exercise not found")
-    return res
+    try:
+        sanitized = sanitize_str(name)
+        repo = ExerciseMetaRepository(mongo=mongo, redis=redis)
+        res = await repo.get_exercise_by_name(sanitized)
+        
+        if not res:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Exercise not found")
+        return res
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get exercise meta by name: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error"
+        )
+
+@router.get(
+    "/meta/muscle-group/{group}",
+    response_model=List[ExerciseMetaInDB],
+    summary="Get exercises by muscle group",
+)
+async def get_exercises_by_muscle_group(
+    muscle_group: ExerciseMuscleGroup,
+    limit: int = Query(default=50, ge=1, le=100),
+    verified_only: bool = Query(default=False),
+    mongo: Mongo = Depends(get_mongo),
+    redis: Redis = Depends(get_redis),
+):
+    try:
+        repo = ExerciseMetaRepository(mongo=mongo, redis=redis)
+        exercises = await repo.get_exercises_by_muscle_group(
+            muscle_group=muscle_group,
+            limit=limit,
+            verified_only=verified_only
+        )
+        return exercises
+    except Exception as e:
+        logger.error(f"Failed to get exercises by muscle group {muscle_group}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error"
+        )
+
+@router.get(
+    "/meta/equipment/{equipment}",
+    response_model=List[ExerciseMetaInDB],
+    summary="Get exercises by equipment",
+)
+async def get_exercises_by_equipment(
+    equipment: ExerciseEquipment,
+    limit: int = Query(default=50, ge=1, le=100),
+    mongo: Mongo = Depends(get_mongo),
+    redis: Redis = Depends(get_redis),
+):
+    try:
+        repo = ExerciseMetaRepository(mongo=mongo, redis=redis)
+        exercises = await repo.get_exercises_by_equipment(
+            equipment=equipment,
+            limit=limit
+        )
+        return exercises
+    except Exception as e:
+        logger.error(f"Failed to get exercises by equipment {equipment}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error"
+        )
 
 @router.get(
     "/meta/search"
@@ -70,7 +150,12 @@ async def get_exercise_meta_by_search():
 @router.post(
     "/meta/",
     response_model=ExerciseMetaInDB,
-    status_code=status.HTTP_201_CREATED
+    status_code=status.HTTP_201_CREATED,
+    summary="Create new exercise meta",
+    responses={
+        409: {"model": ErrorResponse, "description": "Exercise with this name already exists"},
+        422: {"model": ErrorResponse, "description": "Validation error"}
+    }
 )
 async def create_exercise_meta(
     req: ExerciseMetaCreateRequest,
@@ -78,30 +163,91 @@ async def create_exercise_meta(
     mongo: Mongo = Depends(get_mongo),
     redis: Redis = Depends(get_redis)
 ) -> ExerciseMetaInDB:
-    repo = ExerciseMetaRepository(mongo=mongo, redis=redis)
+    try:
+        repo = ExerciseMetaRepository(mongo=mongo, redis=redis)
     
-    existing = await repo.get_exercise_by_name(req.name)
-    if existing:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Exercise with this name already exists")
-    
-    sanitized_name = sanitize_str(req.name)
-    sanitized_aliases = sanitize_str_list(req.aliases) if req.aliases is not None else []
-    
-    new_meta = await repo.create_exercise(
-        name=sanitized_name,
-        created_by=current_user["id"],
-        aliases=sanitized_aliases
-    )
-    
-    if not new_meta:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to create exercise meta")    
-    return new_meta
+        existing = await repo.get_exercise_by_name(req.name)
+        if existing:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Exercise with this name already exists")
+        
+        sanitized_name = sanitize_str(req.name)
+        sanitized_aliases = sanitize_str_list(req.aliases) if req.aliases else []
+        
+        new_meta = await repo.create_exercise(
+            name=sanitized_name,
+            created_by=current_user["id"],
+            aliases=sanitized_aliases,
+            muscle_groups=req.muscle_groups,
+            equipment=req.equipment,
+        )
+        
+        if not new_meta:
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to create exercise meta")    
+        return new_meta
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to create exercise meta: {e}")
+        return None
 
 @router.put(
-    "/meta/"
+    "/meta/{identifier}",
+    response_model=ExerciseMetaInDB,
+    summary="Update exercise",
+    description="Update an existing exercise metadata entry"
 )
-async def update_exercise_meta():
-    pass
+async def update_exercise_meta(
+    identifier: str,
+    updates: Dict[str, Any],
+    current_user: Dict[str, Any] = Depends(read_request_account_id),
+    mongo: Mongo = Depends(get_mongo),
+    redis: Redis = Depends(get_redis)
+):
+    try:
+        repo = ExerciseMetaRepository(mongo=mongo, redis=redis)
+        
+        existing = await repo.get_exercise_by_id(identifier)
+        if not existing:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Exercise not found"
+            )
+        
+        # check permissions - only creator or admin can update
+        # for now only allow creator to update
+        if existing.created_by != current_user["id"]:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You can only update exercises you created"
+            )
+        
+        if "name" in updates:
+            updates["name"] = sanitize_str(updates["name"])
+        if "aliases" in updates:
+            updates["aliases"] = sanitize_str_list(updates["aliases"])
+        
+        # remove fields that shouldn't be updated by users
+        forbidden_fields = ["id", "_id", "created_by", "created_at", "verified", "uses"]
+        for field in forbidden_fields:
+            updates.pop(field, None)
+        
+        updated_exercise = await repo.update_exercise(identifier, updates)
+        if not updated_exercise:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to update exercise"
+            )
+        
+        logger.info(f"Updated exercise {identifier} by user {current_user['username']}")
+        return updated_exercise
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to update exercise {identifier}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error"
+        )
 
 @router.delete(
     "/meta/{identifier}"
