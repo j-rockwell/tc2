@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import Optional, Dict, Any
 import logging
 
-from app.schema.session import ExerciseSession, ExerciseSessionStatus, ExerciseSessionInvite, ExerciseSessionInDB, ExerciseSessionParticipant, ExerciseSessionParticipantCursor
+from app.schema.exercise_session import ExerciseSession, ExerciseSessionStatus, ExerciseSessionInvitation, ExerciseSessionInDB, ExerciseSessionParticipant, ExerciseSessionParticipantCursor
 from app.models.responses.session import SessionCreateResponse, SessionInviteAcceptResponse, SessionQueryResponse
 from app.models.requests.session import SessionInviteRequest, SessionInviteAcceptRequest
 from app.models.responses.base import ErrorResponse
@@ -230,7 +230,7 @@ async def send_session_invite(
         if any(inv.invited_id == invited_account_id for inv in session.invites):
             raise HTTPException(status.HTTP_409_CONFLICT, detail="Account has already been invited")
         
-        new_invite = ExerciseSessionInvite(
+        new_invite = ExerciseSessionInvitation(
             invited_id=invited_account_id,
             invited_by=account_id
         )
