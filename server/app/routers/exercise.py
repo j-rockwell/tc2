@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, status, Query, Depends
 from fastapi.security import HTTPBearer
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 import logging
 
 from app.deps import read_request_account_id, get_mongo, get_redis
@@ -142,10 +142,65 @@ async def get_exercises_by_equipment(
         )
 
 @router.get(
-    "/meta/search"
+    "/meta/search",
+    status_code=status.HTTP_200_OK,
+    response_model=List[ExerciseMetaInDB],
+    summary="Search for exercise meta",
+    responses={
+        404: {"model": ErrorResponse, "description": "Exercises not found"},
+    }
 )
-async def get_exercise_meta_by_search():
-    pass
+async def search_exercise_meta(
+    q: str = Query(..., min_length=2, max_length=100, description="Search query"),
+    limit: int = Query(default=10, ge=1, le=50, description="Maximum number of results"),
+    include_aliases: bool = Query(default=True, description="Include aliases in search"),
+    verified_only: bool = Query(default=False, description="Only return verified exercises"),
+    muscle_group: Optional[ExerciseMuscleGroup] = Query(default=None, description="Filter by muscle group"),
+    equipment: Optional[ExerciseEquipment] = Query(default=None, description="Filter by equipment"),
+    mongo: Mongo = Depends(get_mongo),
+    redis: Redis = Depends(get_redis),
+):
+    try:
+        repo = ExerciseMetaRepository(mongo=mongo, redis=redis)
+        
+        if muscle_group and not equipment:
+            exercises = await repo.get_exercises_by_muscle_group(
+                muscle_group=muscle_group,
+                limit=limit,
+                verified_only=verified_only
+            )
+        elif equipment and not muscle_group:
+            exercises = await repo.get_exercises_by_equipment(
+                equipment=equipment,
+                limit=limit
+            )
+        else:
+            exercises = await repo.get_exercises_by_fuzzy_search(
+                query=q,
+                limit=limit,
+                include_aliases=include_aliases
+            )
+            
+            if muscle_group:
+                exercises = [ex for ex in exercises if muscle_group in (ex.muscle_groups or [])]
+            if equipment:
+                exercises = [ex for ex in exercises if ex.equipment == equipment]
+            if verified_only:
+                exercises = [ex for ex in exercises if ex.verified]
+        
+        if not exercises:
+            return HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No exercises found"
+            )
+            
+        return exercises
+    except Exception as e:
+        logger.error(f"Failed to search exercises with query '{q}': {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error"
+        )
 
 @router.post(
     "/meta/",
