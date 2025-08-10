@@ -38,6 +38,7 @@ class ExerciseSessionOperationType(str, Enum):
     HEARTBEAT = "heartbeat"
     SYNC_REQUEST = "sync_request"
     SYNC_RESPONSE = "sync_response"
+    STATE_SYNC = "state_sync"
 
 
 @dataclass
