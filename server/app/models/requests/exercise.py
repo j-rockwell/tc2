@@ -7,4 +7,4 @@ class ExerciseMetaCreateRequest(BaseModel):
     name: str
     aliases: Optional[List[str]] = None
     muscle_groups: Optional[List[ExerciseMuscleGroup]] = None
-    equipment: Optional[List[ExerciseEquipment]] = None
+    equipment: Optional[ExerciseEquipment] = None

@@ -4,9 +4,10 @@ import re
 _allowed_pattern = re.compile(r"[^a-zA-Z0-9\-]+")
 
 def _sanitize_str(value: str) -> str:
-    cleaned = cleaned.lower()
-    cleaned = _allowed_pattern.sub("", value)
+    cleaned = value.lower()
+    cleaned = _allowed_pattern.sub("", cleaned)
     cleaned = re.sub(r"-{2,}", "-", cleaned)
+    cleaned = re.sub(r"\s+", " ", cleaned)
     return cleaned.strip("-")
 
 def sanitize_str(text: str) -> str:

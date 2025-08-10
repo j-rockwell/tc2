@@ -153,7 +153,7 @@ class ExerciseMetaRepository:
                 updated_at=now
             )
             
-            inserted = await self.mongo.insert(collection=meta_collection_name, document=new_meta)
+            inserted = await self.mongo.insert(collection=meta_collection_name, document=new_meta.dict(exclude_none=True))
             in_db = await self.mongo.find_one_by_id(collection=meta_collection_name, document_id=inserted)
             
             if in_db:

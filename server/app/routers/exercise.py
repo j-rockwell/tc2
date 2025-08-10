@@ -188,7 +188,10 @@ async def create_exercise_meta(
         raise
     except Exception as e:
         logger.error(f"Failed to create exercise meta: {e}")
-        return None
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error"
+        )
 
 @router.put(
     "/meta/{identifier}",
