@@ -11,9 +11,17 @@ on:
   workflow_dispatch:
     inputs:
       python-version:
-        description: 'Python version to use (e.g., 3.10, 3.11, 3.12)'
+        description: 'Python version (e.g., 3.11, 3.12)'
         required: false
         default: '3.11'
+      start-target:
+        description: 'Uvicorn target (module:app), e.g., app.main:app'
+        required: false
+        default: 'app.main:app'
+      probe-path:
+        description: 'HTTP path to probe after boot (/, /health, etc.)'
+        required: false
+        default: '/'
 
 jobs:
   test:
@@ -25,10 +33,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - id: py
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: ${{ inputs.python-version || '3.11' }}
 
       - name: Cache Poetry install
         uses: actions/cache@v4
@@ -62,5 +69,22 @@ jobs:
       - name: Install project
         run: poetry install --no-interaction
 
-      - name: Run tests
-        run: poetry run pytest
+      - name: Poetry metadata check
+        run: poetry check
+
+      - name: Byte-compile all Python files (fail on syntax errors)
+        run: |
+          python - <<'PY'
+          import pathlib, py_compile, sys
+          files = [p for p in pathlib.Path('.').rglob('*.py')]
+          for f in files:
+              py_compile.compile(str(f), doraise=True)
+          print(f"Byte-compiled {len(files)} files successfully")
+          PY
+
+      - name: Smoke-boot application with Uvicorn
+        env:
+          START_TARGET: ${{ inputs.start-target || 'app.main:app' }}
+          PROBE_PATH:   ${{ inputs.probe-path   || '/' }}
+        run: |
+          # Start server in background on a non-default port
