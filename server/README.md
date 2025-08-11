@@ -1,5 +1,5 @@
 # Server
-FastAPI backend. Built with Python, featuring JWT Authentication, MongoDB storage and Redis caching.
+Training Club's back end server monorepo
 
 ## Install
 ### Step 1 - Clone project and install dependencies
