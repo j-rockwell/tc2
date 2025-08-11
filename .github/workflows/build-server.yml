@@ -8,6 +8,12 @@ on:
   pull_request:
     paths:
       - 'server/**'
+  workflow_dispatch:
+    inputs:
+      python-version:
+        description: 'Python version to use (e.g., 3.10, 3.11, 3.12)'
+        required: false
+        default: '3.11'
 
 jobs:
   test:
