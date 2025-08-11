@@ -15,7 +15,7 @@ class Redis:
     
     async def connect(self) -> bool:
         try:
-            self._client = aioredis.from_url(
+            pool = aioredis.ConnectionPool.from_url(
                 self.uri,
                 db=self.db,
                 encoding="utf-8",
@@ -24,8 +24,9 @@ class Redis:
                 retry_on_timeout=True,
                 socket_keepalive=True,
                 socket_keepalive_options={},
-                health_check_interval=30
+                health_check_interval=60,
             )
+            self._client = aioredis.Redis(connection_pool=pool)
             return True
         except Exception as e:
             logger.error(f"Failed to initialize Redis connection: {e}")

@@ -15,7 +15,20 @@ class MongoError(Exception):
 class Mongo:
     def __init__(self, uri: str, db_name: str, auto_convert_objectids: bool = True):
         logger.info("Initializing Mongo Instance")
-        self._client = AsyncIOMotorClient(uri)
+        
+        self._client = AsyncIOMotorClient(
+            uri,
+            maxPoolSize=50,
+            minPoolSize=10,
+            maxIdleTimeMS=30000,
+            serverSelectionTimeoutMS=5000,
+            connectTimeoutMS=10000,
+            socketTimeoutMS=20000,
+            retryWrites=True,
+            w="majority",
+            wtimeoutMS=10000
+        )
+        
         self.db = self._client[db_name]
         self.auto_convert_objectids = auto_convert_objectids
     
