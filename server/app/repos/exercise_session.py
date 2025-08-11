@@ -62,7 +62,11 @@ class ExerciseSessionRepository:
 
         states: List[ExerciseSessionState] = []
         for p in session.participants:
+            if not session.id:
+                continue
+            
             key = build_state_key(session.id, p.id)
+            
             raw = await self.redis.get(key)
             if not raw:
                 continue
@@ -89,6 +93,8 @@ class ExerciseSessionRepository:
     async def get_active_session_state_by_user(self, account_id: str) -> Optional[ExerciseSessionState]:
         session = await self.get_active_session_by_user(account_id)
         if not session:
+            return None
+        if not session.id:
             return None
 
         key = build_state_key(session.id, account_id)

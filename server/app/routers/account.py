@@ -9,7 +9,6 @@ from app.db.mongo import Mongo
 from app.db.redis import Redis
 from app.util.hash import Hasher
 from app.util.token import Tokenizer
-from app.config import settings
 from app.util.cookie import clear_auth_cookies, set_auth_cookies
 from app.util.session import Sessions, SessionSecurity, get_client_info
 from datetime import datetime, timezone
@@ -52,10 +51,15 @@ async def get_account_availability(
             value = username.lower()
             cache_key = f"username_exists:{value}"
             db_query = {"username": value}
-        else:
+        elif email:
             value = email.lower()
             cache_key = f"email_exists:{value}"
             db_query = {"email": value}
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Must provide either username or email"
+            )
         
         available = True
         
@@ -119,7 +123,7 @@ async def get_account_fuzzy(
         }
         
         if current_user:
-            search_filter["_id"] = {"$ne": ObjectId(current_user["id"])}
+            search_filter["_id"] = {"$ne": ObjectId(current_user["id"])} # type: ignore
         
         accounts = await db.find_many(
             "accounts",
@@ -458,8 +462,8 @@ async def create_account(
     description="Permanently delete the authenticated user's account"
 )
 async def delete_account(
+    response: Response,
     current_user: Dict[str, Any] = Depends(read_request_account_id),
-    response: Response = None,
     db: Mongo = Depends(get_mongo),
     redis: Redis = Depends(get_redis)
 ):

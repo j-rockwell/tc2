@@ -5,13 +5,14 @@ from datetime import datetime
 from typing import Optional, Dict, Any
 import logging
 
+from app.repos.exercise_session import ExerciseSessionRepository
 from app.schema.exercise_session import ExerciseSession, ExerciseSessionStatus, ExerciseSessionInvitation, ExerciseSessionInDB, ExerciseSessionParticipant, ExerciseSessionParticipantCursor
 from app.models.responses.session import SessionCreateResponse, SessionInviteAcceptResponse, SessionQueryResponse
 from app.models.requests.session import SessionInviteRequest, SessionInviteAcceptRequest
 from app.models.responses.base import ErrorResponse
 from app.db.mongo import Mongo
 from app.db.redis import Redis
-from app.deps import get_mongo, read_request_account_id
+from app.deps import get_mongo, get_redis, read_request_account_id
 
 # SOCKET
 # /channel          - Access to communication channel for exercise sessions
@@ -146,6 +147,7 @@ async def get_state():
 async def create_session(
     current_user: Dict[str, Any] = Depends(read_request_account_id),
     db: Mongo = Depends(get_mongo),
+    redis: Redis = Depends(get_redis),
 ) -> SessionCreateResponse:
     try:
         account_id = current_user["id"]
@@ -163,22 +165,15 @@ async def create_session(
                 detail="You have an active session in-progress"
             )
         
-        created_session = ExerciseSession(
-            owner_id=account_id,
-            status=ExerciseSessionStatus.ACTIVE,
-            participants=[
-                ExerciseSessionParticipant(
-                    id=account_id,
-                    color='#FFFFFF',
-                    cursor=None
-                )
-            ]
-        )
-        
-        await db.insert("exercise_sessions", created_session.dict(by_alias=True, exclude_none=True))
-        
-        res = SessionCreateResponse(session=created_session)
-        return res
+        repo = ExerciseSessionRepository(mongo=db, redis=redis)
+        created_session = await repo.create_session(account_id)
+        if not created_session:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to create new session"
+            )
+            
+        return SessionCreateResponse(session=created_session)
     except HTTPException:
         raise
     except Exception as e:
@@ -227,12 +222,12 @@ async def send_session_invite(
         if any(p.id == invited_account_id for p in session.participants):
             raise HTTPException(status.HTTP_409_CONFLICT, detail="Account is already a participant")
         
-        if any(inv.invited_id == invited_account_id for inv in session.invites):
+        if any(inv.invited == invited_account_id for inv in session.invitations):
             raise HTTPException(status.HTTP_409_CONFLICT, detail="Account has already been invited")
         
         new_invite = ExerciseSessionInvitation(
-            invited_id=invited_account_id,
-            invited_by=account_id
+            invited_by=account_id,
+            invited=invited_account_id
         )
         
         update_result = await db.update_one(
@@ -267,8 +262,8 @@ async def send_session_invite(
 async def accept_session_invite(
     req: SessionInviteAcceptRequest,
     current_user: Dict[str, Any] = Depends(read_request_account_id),
-    db: Mongo = Depends(get_mongo)
-) -> SessionInviteAcceptResponse:
+    db: Mongo = Depends(get_mongo),
+):
     try:
         account_id = current_user["id"]
         session_id = req.session_id
@@ -301,7 +296,7 @@ async def accept_session_invite(
         session = ExerciseSessionInDB(**found_session)
         
         # check if user is invited to the session
-        if not any(inv.invited_id == account_id for inv in session.invites):
+        if not any(inv.invited == account_id for inv in session.invitations):
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No invitation found for account")
         
         new_participant = ExerciseSessionParticipant(

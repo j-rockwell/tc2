@@ -168,21 +168,6 @@ async def read_ws_account_id(
     if not await Sessions.is_valid(redis, account_id, "access"):
         await websocket.close(code=1008)
         raise WebSocketException(code=1008)
-    
-    client_ip = websocket.client.host
-    client_ua = websocket.headers.get("user-agent", "")
-    suspicion = await SessionSecurity.detect_suspicious(
-        redis, account_id, client_ip, client_ua
-    )
-    if suspicion["score"] > 70:
-        await SessionSecurity.log_event(
-            redis, account_id, "high_suspicion_ws",
-            suspicion, client_ip
-        )
-        await websocket.close(code=1008)
-        raise WebSocketException(code=1008)
-
-    await Sessions.update(redis, account_id, "access", client_ip)
 
     user_cache_key = f"user:{account_id}"
     user_data      = await redis.get(user_cache_key, decode_json=True)

@@ -293,7 +293,7 @@ class Mongo:
     async def list_indexes(self, collection: str) -> List[Dict[str, Any]]:
         try:
             cursor = self.db[collection].list_indexes()
-            return await cursor.to_list(length=None)
+            return await cursor.to_list(length=None) # type: ignore
         except PyMongoError as e:
             logger.error(f"List indexes failed for collection {collection}: {e}")
             raise MongoError(f"List indexes operation failed: {e}") from e

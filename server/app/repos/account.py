@@ -42,6 +42,5 @@ class AccountRepository:
         
         inserted = await self.mongo.insert(collection=collection_name, document=doc)
         account = await self.mongo.find_one_by_id(collection=collection_name, document_id=inserted)
-        
-        return AccountInDB(**account)
+        return AccountInDB(**account) if account else None
     

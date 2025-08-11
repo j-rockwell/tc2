@@ -10,13 +10,18 @@ logger = logging.getLogger(__name__)
 
 def get_client_info(request: Request) -> dict:
     forwarded_for = request.headers.get("X-Forwarded-For")
+    real_ip = request.headers.get("X-Real-IP")
+    
     if forwarded_for:
         ip = forwarded_for.split(",")[0].strip()
+    elif real_ip:
+        ip = real_ip
+    elif request.client:
+        ip = request.client.host
     else:
-        ip = request.headers.get("X-Real-IP") or str(request.client.host)
+        ip = ""
     
     user_agent = request.headers.get("User-Agent", "")
-    
     return {"ip": ip, "user_agent": user_agent}
 
 class Sessions:

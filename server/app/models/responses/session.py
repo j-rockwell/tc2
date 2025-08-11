@@ -6,7 +6,7 @@ class SessionQueryResponse(BaseModel):
     data: List[ExerciseSessionInDB]
 
 class SessionCreateResponse(BaseModel):
-    session: ExerciseSession
+    session: ExerciseSessionInDB
 
 class SessionInviteAcceptResponse(BaseModel):
     session: ExerciseSession

@@ -34,7 +34,7 @@ class AccountBase(BaseModel):
     privacy: Optional[PrivacyBase]
 
 class AccountInDB(AccountBase):
-    id: str = Optional[Field(alias="_id")]
+    id: str = Field(alias="_id")
     
     class Config:
         allow_population_by_field_name = True

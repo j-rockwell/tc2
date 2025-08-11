@@ -402,6 +402,9 @@ class ExerciseSessionMessageService:
         try:
             raw = redis_op.get("data")
             
+            if not raw:
+                raise RuntimeError("could not find data in pubsub")
+            
             if isinstance(raw, (bytes, bytearray)):
                 raw = raw.decode("utf-8")
                 

@@ -337,10 +337,10 @@ async def init_esms(mongo: Mongo, redis: Redis) -> None:
     await register_esms_handlers(_esms, mongo, redis)
 
 async def cleanup_esms():
-    global esms
-    if esms:
-        await esms.stop()
-        esms = None
+    global _esms
+    if _esms:
+        await _esms.stop()
+        _esms = None
     logger.info("Exercise Session Message Service stopped and cleaned up")
 
 @router.websocket("/")

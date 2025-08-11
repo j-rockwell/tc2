@@ -328,7 +328,7 @@ async def refresh_token(
     summary="Refresh access token",
     description="Generate new access token using refresh token"
 )
-async def refresh_token(
+async def refresh_cookie(
     request: Request,
     response: Response,
     redis: Redis = Depends(get_redis),

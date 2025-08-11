@@ -91,7 +91,7 @@ class ExerciseMetaRepository:
         try:
             filter_dict = {"muscle_groups": muscle_group.value}
             if verified_only:
-                filter_dict["verified"] = True
+                filter_dict["verified"] = True # type: ignore
             
             docs = await self.mongo.find_many(
                 collection=meta_collection_name,

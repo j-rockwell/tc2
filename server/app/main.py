@@ -1,6 +1,5 @@
 import logging
 from fastapi import FastAPI
-from typing import Optional
 from contextlib import asynccontextmanager
 
 from app.db.mongo import Mongo
@@ -74,7 +73,7 @@ async def lifespan(app: FastAPI):
             logger.error(f"Failed to close MongoDB: {e}")
 
         try:
-            if getattr(app.state, "redis", None):
+            if app.state.redis:    
                 await app.state.redis.close()
                 logger.info("Redis connection closed")
         except Exception as e:
