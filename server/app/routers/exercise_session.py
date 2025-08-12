@@ -139,6 +139,8 @@ async def get_state():
 @router.post(
     "/",
     status_code=status.HTTP_201_CREATED,
+    response_model=SessionCreateResponse,
+    response_model_by_alias=False,
     summary="Create a new exercise session",
     responses={
         409: {"model": ErrorResponse, "description": "Active user session already exists"},
@@ -148,7 +150,6 @@ async def create_session(
     current_user: Dict[str, Any] = Depends(read_request_account_id),
     db: Mongo = Depends(get_mongo),
     redis: Redis = Depends(get_redis),
-    response_model=SessionCreateResponse,
 ) -> SessionCreateResponse:
     try:
         account_id = current_user["id"]
