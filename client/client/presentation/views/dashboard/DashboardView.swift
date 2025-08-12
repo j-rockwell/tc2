@@ -13,6 +13,7 @@ struct DashboardView: View {
             PageTitleView(title: "Dashboard")
             Spacer()
             Text("Dashboard View")
+            Spacer()
         }
     }
 }

@@ -161,10 +161,20 @@ struct ExerciseSessionStateItemMetric: Codable {
 
 struct ExerciseSessionStateItemSet: Codable, Identifiable {
     var id: String
+    var metaId: String
     var order: Int
     var metrics: ExerciseSessionStateItemMetric
     var type: ExerciseSetType
     var complete: Bool
+    
+    enum CodingKeys: String, CodingKey {
+        case id
+        case metaId = "meta_id"
+        case order
+        case metrics
+        case type
+        case complete
+    }
 }
 
 struct ExerciseSessionStateItem: Codable, Identifiable {

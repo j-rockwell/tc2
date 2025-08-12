@@ -4,26 +4,30 @@ struct NavigationView: View {
     @EnvironmentObject var authManager: AuthenticationManager
     @EnvironmentObject var exerciseSessionManager: ExerciseSessionManager
     
+    @State private var selectedView = 0
+    
     var body: some View {
-        TabView {
+        TabView(selection: $selectedView) {
             DashboardView()
                 .tabItem {
                     Label("Dashboard", systemImage: "book")
                 }
+                .tag(0)
             
             SearchView()
                 .tabItem {
                     Label("Search", systemImage: "magnifyingglass")
                 }
+                .tag(1)
             
             if exerciseSessionManager.currentSession != nil {
                 SessionView(
                     session: exerciseSessionManager.currentSession!,
-                    state: exerciseSessionManager.currentState!
-                )
+                    state: exerciseSessionManager.currentState!)
                     .tabItem {
                         Label("Session", systemImage: "dumbbell.fill")
                     }
+                    .tag(2)
                     .environmentObject(authManager)
                     .environmentObject(exerciseSessionManager)
             } else {
@@ -31,6 +35,7 @@ struct NavigationView: View {
                     .tabItem {
                         Label("New Session", systemImage: "dumbbell.fill")
                     }
+                    .tag(2)
                     .environmentObject(authManager)
                     .environmentObject(exerciseSessionManager)
             }
@@ -39,14 +44,35 @@ struct NavigationView: View {
                 .tabItem {
                     Label("Analytics", systemImage: "chart.bar.xaxis")
                 }
+                .tag(3)
             
             ProfileView()
                 .tabItem {
                     Image("HappySun")
                     Text("Profile")
                 }
+                .tag(4)
         }
         .padding(.horizontal)
+        .onChange(of: selectedView) { oldValue, newValue in
+            print("old value: \(oldValue), new value: \(newValue)")
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            if shouldSessionMinicardBeShown() {
+                SessionMiniView()
+                    .environmentObject(exerciseSessionManager)
+                    .onTapGesture { selectedView = 2 }
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    .padding(.horizontal)
+                    .padding(.bottom, 54)
+            }
+        }
+        .animation(.easeInOut(duration: 0.25), value: shouldSessionMinicardBeShown())
+        .ignoresSafeArea(.keyboard, edges: .bottom)
+    }
+    
+    private func shouldSessionMinicardBeShown() -> Bool {
+        return exerciseSessionManager.currentSession != nil && exerciseSessionManager.currentState != nil && selectedView != 2
     }
 }
 
@@ -87,9 +113,9 @@ struct NavigationView: View {
             meta: [ExerciseSessionItemMeta(internalId: "internal-id", name: "Bench Press", type: .weightReps)],
             sets:
             [
-                ExerciseSessionStateItemSet(id: "set-id-1", order: 1, metrics: ExerciseSessionStateItemMetric(reps: 5, weight: Weight(value: 135.0, unit: .pound)), type: .workingSet, complete: false),
-                ExerciseSessionStateItemSet(id: "set-id-2", order: 2, metrics: ExerciseSessionStateItemMetric(reps: 5, weight: Weight(value: 185.0, unit: .pound)), type: .workingSet, complete: false),
-                ExerciseSessionStateItemSet(id: "set-id-3", order: 3, metrics: ExerciseSessionStateItemMetric(reps: 5, weight: Weight(value: 225.0, unit: .pound)), type: .workingSet, complete: false)
+                ExerciseSessionStateItemSet(id: "set-id-1", metaId: "internal-id", order: 1, metrics: ExerciseSessionStateItemMetric(reps: 5, weight: Weight(value: 135.0, unit: .pound)), type: .workingSet, complete: false),
+                ExerciseSessionStateItemSet(id: "set-id-2", metaId: "internal-id", order: 2, metrics: ExerciseSessionStateItemMetric(reps: 5, weight: Weight(value: 185.0, unit: .pound)), type: .workingSet, complete: false),
+                ExerciseSessionStateItemSet(id: "set-id-3", metaId: "internal-id", order: 3, metrics: ExerciseSessionStateItemMetric(reps: 5, weight: Weight(value: 225.0, unit: .pound)), type: .workingSet, complete: false)
             ])
         ]
     )
