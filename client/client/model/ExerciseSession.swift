@@ -1,5 +1,25 @@
 import Foundation
 
+enum ExerciseSessionOperationType: String, CaseIterable, Codable {
+    case sessionJoin = "session_join"
+    case sessionLeave = "session_leave"
+    case sessionUpdate = "session_update"
+    case sessionSync = "session_sync"
+    
+    case exerciseAdd = "exercise_add"
+    case exerciseUpdate = "exercise_update"
+    case exerciseDelete = "exercise_delete"
+    
+    case setAdd = "set_add"
+    case setUpdate = "set_update"
+    case setDelete = "set_delete"
+    case setComplete = "set_complete"
+    
+    case cursorMove = "cursor_move"
+    case syncRequest = "sync_request"
+    case syncResponse = "sync_response"
+}
+
 enum ExerciseType: String, Codable {
     case weightReps = "weight_reps"
     case weightTime = "weight_time"
@@ -12,44 +32,56 @@ enum ExerciseType: String, Codable {
 enum ExerciseSessionStatus: String, Codable {
     case draft = "draft"
     case active = "active"
-    case complete = "complete"
+}
+
+enum ExerciseSessionStateItemType: String, Codable {
+    case single = "single"
+    case compound = "compound"
+}
+
+enum ExerciseSetType: String, Codable {
+    case warmupSet = "warmup"
+    case workingSet = "working"
+    case dropSet = "drop"
+    case superSet = "super"
+    case failureSet = "failure"
 }
 
 enum WeightUnit: String, Codable {
-    case kg
-    case lb
+    case kilogram = "kg"
+    case pound = "lb"
 }
 
 enum DistanceUnit: String, Codable {
-    case m
-    case km
-    case mi
-    case yd
+    case meter = "m"
+    case kilometer = "km"
+    case mile = "mi"
+    case yard = "yd"
 }
 
 struct Weight: Codable {
     var value: Double
-    var unit: WeightUnit = .lb
+    var unit: WeightUnit
     
     var toKg: Double {
-        unit == .lb ? value * 0.453592 : value
+        unit == .pound ? value * 0.453592 : value
     }
     
-    var toLb: Double {
-        unit == .kg ? value / 0.453592 : value
+    var toPound: Double {
+        unit == .kilogram ? value / 0.453592 : value
     }
 }
 
 struct Distance: Codable {
     var value: Double
-    var unit: DistanceUnit = .m
+    var unit: DistanceUnit = .meter
     
     var toMeters: Double {
         switch unit {
-        case .m: return value
-        case .km: return value * 1_000
-        case .mi: return value * 1_609.34
-        case .yd: return value * 0.9144
+        case .meter: return value
+        case .kilometer: return value * 1_000
+        case .mile: return value * 1_609.34
+        case .yard: return value * 0.9144
         }
     }
 }
@@ -58,132 +90,160 @@ struct Duration: Codable {
     var value: Int
 }
 
-struct ExerciseSet: Codable, Identifiable {
-    var id: String
-    var order: Int = 1
-    var reps: Int?
-    var weight: Weight?
-    var distance: Distance?
-    var duration: Duration?
-    var dropSets: [ExerciseSet] = []
-    
-    enum CodingKeys: String, CodingKey {
-        case id, order, reps, weight, distance, duration
-        case dropSets = "drop_sets"
-    }
-}
-
-struct ExerciseItem: Codable, Identifiable {
-    var kind: String = "exercise"
-    var id: String
-    var name: String
-    var type: ExerciseType
-    var sets: [ExerciseSet] = []
-    
-    enum CodingKeys: String, CodingKey {
-        case id, name, type, sets
-    }
-}
-
-struct ExerciseSuperSetItem: Codable, Identifiable {
-    let kind: String = "superset"
-    var id: String
-    var exercises: [ExerciseItem]
-    var note: String?
-    
-    enum CodingKeys: String, CodingKey {
-        case kind, id, exercises, note
-    }
-}
-
-enum SessionItem: Codable {
-    case exercise(ExerciseItem)
-    case superset(ExerciseSuperSetItem)
-    
-    private enum KindKey: String, CodingKey {
-        case kind
-    }
-    
-    init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: KindKey.self)
-        let kind = try container.decode(String.self, forKey: .kind)
-        switch kind {
-            case "exercise":
-                self = .exercise(try ExerciseItem(from: decoder))
-            case "superset":
-                self = .superset(try ExerciseSuperSetItem(from: decoder))
-            default:
-                throw DecodingError.dataCorruptedError(forKey: .kind,
-                    in: container,
-                    debugDescription: "Unknown SessionItem kind: \(kind)")
-        }
-    }
-
-    func encode(to encoder: Encoder) throws {
-        switch self {
-        case .exercise(let item):
-            try item.encode(to: encoder)
-        case .superset(let superset):
-            try superset.encode(to: encoder)
-        }
-    }
-}
-
-struct ExerciseSessionState: Codable {
-    var sessionId: String
-    var accountId: String
-    var version: Int = 0
-    var items: [SessionItem] = []
-    var updatedAt: Date
-
-    enum CodingKeys: String, CodingKey {
-        case sessionId = "session_id"
-        case accountId = "account_id"
-        case version, items
-        case updatedAt = "updated_at"
-    }
-}
-
 struct ExerciseSessionParticipantCursor: Codable {
-    var itemId: String
-    var setId: String?
-
+    var exerciseId: String
+    var exerciseSetId: String
+    
     enum CodingKeys: String, CodingKey {
-        case itemId = "item_id"
-        case setId  = "set_id"
+        case exerciseId = "exercise_id"
+        case exerciseSetId = "exercise_set_id"
     }
 }
 
-struct ExerciseSessionParticipant: Codable, Identifiable {
+struct ExerciseSessionParticipant: Codable {
     var id: String
     var color: String
     var cursor: ExerciseSessionParticipantCursor?
 }
 
-struct ExerciseSessionInvite: Codable {
-    var invitedId: String
+struct ExerciseSessionInvitation: Codable {
     var invitedBy: String
-    var invitedAt: Date
-
+    var invited: String
+    var expires: Date?
+    
     enum CodingKeys: String, CodingKey {
-        case invitedId = "invited_id"
         case invitedBy = "invited_by"
-        case invitedAt = "invited_at"
+        case invited
+        case expires
     }
 }
 
 struct ExerciseSession: Codable {
+    var id: String
+    var name: String?
+    var status: ExerciseSessionStatus
     var ownerId: String
-    var status: ExerciseSessionStatus = .draft
-    var participants: [ExerciseSessionParticipant] = []
-    var invites: [ExerciseSessionInvite] = []
     var createdAt: Date
     var updatedAt: Date
-
+    var participants: [ExerciseSessionParticipant]
+    var invitations: [ExerciseSessionInvitation]
+    
     enum CodingKeys: String, CodingKey {
+        case id = "id"
+        case name
+        case status
         case ownerId = "owner_id"
-        case status, participants, invites
         case createdAt = "created_at"
         case updatedAt = "updated_at"
+        case participants
+        case invitations
+    }
+}
+
+struct ExerciseSessionItemMeta: Codable {
+    var internalId: String
+    var name: String
+    var type: ExerciseType
+    
+    enum CodingKeys: String, CodingKey {
+        case internalId = "internal_id"
+        case name
+        case type
+    }
+}
+
+struct ExerciseSessionStateItemMetric: Codable {
+    var reps: Int?
+    var weight: Weight?
+    var duration: Duration?
+    var distance: Distance?
+}
+
+struct ExerciseSessionStateItemSet: Codable {
+    var id: String
+    var order: Int
+    var metrics: ExerciseSessionStateItemMetric
+    var type: ExerciseSetType
+    var complete: Bool
+}
+
+struct ExerciseSessionStateItem: Codable {
+    var id: String
+    var order: Int
+    var participants: [String]
+    var type: ExerciseSessionStateItemType
+    var rest: Int?
+    var meta: [ExerciseSessionItemMeta]
+    var sets: [ExerciseSessionStateItemSet]
+}
+
+struct ExerciseSessionState: Codable {
+    var sessionId: String
+    var accountId: String
+    var version: Int
+    var items: [ExerciseSessionStateItem]
+    
+    enum CodingKeys: String, CodingKey {
+        case sessionId = "session_id"
+        case accountId = "account_id"
+        case version
+        case items
+    }
+}
+
+struct ExerciseSessionMessage: WebSocketMessage, Codable {
+    let id: String
+    let type: ExerciseSessionOperationType
+    let sessionId: String?
+    let payload: [String: AnyCodable]
+    let timestamp: Date
+    let version: Int
+    let correlationId: String?
+    
+    var action: String {
+        return type.rawValue
+    }
+    
+    enum CodingKeys: String, CodingKey {
+        case id, type, payload, timestamp, version
+        case sessionId = "session_id"
+        case correlationId = "correlation_id"
+    }
+    
+    init(
+        id: String = UUID().uuidString,
+        type: ExerciseSessionOperationType,
+        sessionId: String? = nil,
+        payload: [String: Any] = [:],
+        version: Int = 0,
+        correlationId: String? = nil
+    ) {
+        self.id = id
+        self.type = type
+        self.sessionId = sessionId
+        self.payload = payload.mapValues { AnyCodable($0) }
+        self.timestamp = Date()
+        self.version = version
+        self.correlationId = correlationId
+    }
+}
+
+struct ExerciseSessionJoinMessage {
+    static func create(sessionId: String) -> ExerciseSessionMessage {
+        return ExerciseSessionMessage(
+            type: .sessionJoin,
+            sessionId: sessionId,
+            payload: ["session_id": sessionId]
+        )
+    }
+}
+
+struct ExerciseSessionLeaveMessage {
+    static func create(sessionId: String) -> ExerciseSessionMessage {
+        return ExerciseSessionMessage(
+            type: .sessionLeave,
+            sessionId: sessionId,
+            payload: ["session_id": sessionId]
+        )
     }
 }

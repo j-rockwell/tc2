@@ -1,38 +1,48 @@
 import Foundation
 import Combine
 
-protocol ExerciseSessionManagerProtocol {
-    func performCreateSession() async
-    func performSessionInvite(accountId: String) async
-    func performSessionJoin(sessionId: String) async
-}
-
 @MainActor
 class ExerciseSessionManager: ObservableObject {
-    let logger = AppLogger(subsystem: "dev.jrockwell.client", category: "exercise-sessions")
-
+    let logger = AppLogger(subsystem: "dev.jrockwell.client", category: "esm")
+    
+    @Published var currentSession: ExerciseSession? = nil
     @Published var isLoading = true
-    @Published var session: ExerciseSession?
+    @Published var socketConnectionStatus: WebSocketConnectionState = .disconnected
+    @Published var socketConnectionError: String? = nil
     
     private let tokenService: TokenServiceProtocol
     private let networkService: NetworkServiceProtocol
-    private let websocketService: any WebSocketServiceProtocol
+    private let socketService: any WebSocketServiceProtocol
     private var cancellables = Set<AnyCancellable>()
+    
+    private let connectionId = "exercise_session"
     
     init(
         tokenService: TokenServiceProtocol = TokenService(),
         networkService: NetworkServiceProtocol = NetworkService(),
-        websocketService: any WebSocketServiceProtocol = WebSocketService()
+        socketService: any WebSocketServiceProtocol = WebSocketService()
     ) {
         self.tokenService = tokenService
         self.networkService = networkService
-        self.websocketService = websocketService
-        logger.info("ExerciseSessionManager::init")
+        self.socketService = socketService
     }
     
-    func performCreateSession() async {
-        logger.info("Attempting to create exercise session...")
-        
+    func connectToSocket() async {
+        do {
+            try await socketService.connect(connectionId)
+            logger.info("Connected to Exercise Session Web Socket")
+        } catch {
+            logger.error("Failed to connect to Web Socket: \(error)")
+            socketConnectionError = error.localizedDescription
+        }
+    }
+    
+    func disconnectFromSocket() {
+        socketService.disconnect(connectionId)
+        logger.info("Disconnected from Exercise Session Web Socket")
+    }
+    
+    func createSession() async {
         isLoading = true
         
         do {
@@ -51,21 +61,75 @@ class ExerciseSessionManager: ObservableObject {
                     .store(in: &cancellables)
             }
             
-            await MainActor.run {
-                self.session = response.session
+            currentSession = response.session
+            
+            await connectToSocket()
+            
+            if let sessionId = currentSession?.id {
+                await joinSession(sessionId: sessionId)
             }
         } catch {
-            await MainActor.run {
-                logger.error("Failed to perform create exercise session request: \(error)")
-            }
+            logger.error("Failed to create session: \(error)")
+        }
+        
+        isLoading = false
+    }
+    
+    func joinSession(sessionId: String) async {
+        guard socketConnectionStatus == .connected else {
+            logger.error("Cannot join session: Web Socket connection is closed")
+            return
+        }
+        
+        let message = ExerciseSessionJoinMessage.create(sessionId: sessionId)
+        
+        do {
+            try await socketService.send(message, to: connectionId)
+            logger.info("Sent a session join message")
+            
+            // TODO: Send sync request here
+        } catch {
+            logger.error("Failed to send a session join message: \(error)")
         }
     }
     
-    func performSessionInvite(accountId: String) async {
+    private func setupSocketConnection() {
+        let config = WebSocketService.exerciseSessionConfig()
+        socketService.addConnection(config: config)
         
+        socketService.observeConnectionStatus(for: connectionId)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] isConnected in
+                self?.socketConnectionStatus = isConnected ? .connected : .disconnected
+                self?.logger.info("Web Socket connection status: \(isConnected)")
+            }
+            .store(in: &cancellables)
+        
+        socketService.observeConnectionState(for: connectionId)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] state in
+                switch state {
+                case .failed(let error):
+                    self?.logger.error("Web Socket connection failed: \(error)")
+                case .connected:
+                    self?.socketConnectionError = nil
+                case .disconnected:
+                    self?.socketConnectionError = nil
+                default:
+                    break
+                }
+            }
+            .store(in: &cancellables)
+        
+        socketService.subscribe(to: ExerciseSessionMessage.self, on: connectionId)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] message in
+                self?.handleIncomingMessage(message)
+            }
+            .store(in: &cancellables)
     }
     
-    func performSessionJoin(sessionId: String) async {
-        
+    private func handleIncomingMessage(_ message: ExerciseSessionMessage) {
+        logger.info("Incoming Web Socket Message: \(message.type.rawValue)")
     }
 }

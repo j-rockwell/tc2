@@ -16,17 +16,12 @@ struct NavigationView: View {
                     Label("Search", systemImage: "magnifyingglass")
                 }
             
-            if exerciseSessionManager.session != nil {
-                SessionView()
-                    .tabItem {
-                        Label("Session", systemImage: "dumbbell.fill")
-                    }
-            } else {
-                NewSessionView()
-                    .tabItem {
-                        Label("New Session", systemImage: "dumbbell.fill")
-                    }
-            }
+            NewSessionView()
+                .tabItem {
+                    Label("New Session", systemImage: "dumbbell.fill")
+                }
+                .environmentObject(authManager)
+                .environmentObject(exerciseSessionManager)
             
             AnalyticsView()
                 .tabItem {
@@ -38,7 +33,8 @@ struct NavigationView: View {
                     Image("HappySun")
                     Text("Profile")
                 }
-        }.padding(.horizontal)
+        }
+        .padding(.horizontal)
     }
 }
 
@@ -54,9 +50,9 @@ struct NavigationView: View {
         metadata: nil,
     )
     
-    let mockExerciseSessionManager = ExerciseSessionManager()
+    let mockExerciseManager = ExerciseSessionManager()
     
     return NavigationView()
         .environmentObject(mockAuthManager)
-        .environmentObject(mockExerciseSessionManager)
+        .environmentObject(mockExerciseManager)
 }

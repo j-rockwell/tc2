@@ -1,10 +1,14 @@
 extension WebSocketService {
     static func exerciseSessionConfig() -> WebSocketConfig {
         return WebSocketConfig(
-            id: "session",
-            endpoint: "/session/channel",
+            id: "exercise_session",
+            endpoint: "/session/ws/",
             requiresAuth: true,
-            autoReconnect: true
+            autoReconnect: true,
+            maxReconnectAttempts: 3,
+            reconnectDelay: 2.0,
+            pingInterval: 30.0,
+            connectionTimeout: 10.0,
         )
     }
 }

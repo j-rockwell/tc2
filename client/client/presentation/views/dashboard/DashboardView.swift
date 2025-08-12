@@ -10,12 +10,10 @@ struct DashboardView: View {
     
     var body: some View {
         VStack {
-            DashboardGreeting(name: name)
+            PageTitleView(title: "Dashboard")
             Spacer()
             Text("Dashboard View")
-            Spacer()
         }
-        .padding()
     }
 }
 
