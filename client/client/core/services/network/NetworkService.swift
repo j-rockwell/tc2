@@ -55,7 +55,7 @@ class NetworkService: NetworkServiceProtocol {
                         
                         return data
                     }
-                    .decode(type: T.Response.self, decoder: JSONDecoder())
+                    .decode(type: T.Response.self, decoder: JSONDecoder.customDecoder)
                     .mapError { error in
                         if error is DecodingError {
                             return NetworkError.decodingError(error)

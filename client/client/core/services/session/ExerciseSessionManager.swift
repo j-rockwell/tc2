@@ -25,6 +25,8 @@ class ExerciseSessionManager: ObservableObject {
         self.tokenService = tokenService
         self.networkService = networkService
         self.socketService = socketService
+        
+        setupSocketConnection()
     }
     
     func connectToSocket() async {

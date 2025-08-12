@@ -118,7 +118,7 @@ class WebSocketConnection: ObservableObject {
         return messageSubject
             .compactMap { data in
                 do {
-                    let decoded = try JSONDecoder().decode(messageType, from: data)
+                    let decoded = try JSONDecoder.webSocketDecoder.decode(messageType, from: data)
                     return decoded
                 } catch {
                     self.logger.error("Web Socket Connection [\(self.config.id)] failed to decode message of type \(messageType): \(error)")
