@@ -17,7 +17,9 @@ struct NewSessionView: View {
     }
     
     private func handleCreateBlankSession() {
-        print("handleCreateBlankSession")
+        Task {
+            await exerciseSessionManager.createOfflineSession()
+        }
     }
     
     private func handleCreateGroupSession() {

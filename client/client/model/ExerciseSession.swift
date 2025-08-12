@@ -159,7 +159,7 @@ struct ExerciseSessionStateItemMetric: Codable {
     var distance: Distance?
 }
 
-struct ExerciseSessionStateItemSet: Codable {
+struct ExerciseSessionStateItemSet: Codable, Identifiable {
     var id: String
     var order: Int
     var metrics: ExerciseSessionStateItemMetric
@@ -167,7 +167,7 @@ struct ExerciseSessionStateItemSet: Codable {
     var complete: Bool
 }
 
-struct ExerciseSessionStateItem: Codable {
+struct ExerciseSessionStateItem: Codable, Identifiable {
     var id: String
     var order: Int
     var participants: [String]

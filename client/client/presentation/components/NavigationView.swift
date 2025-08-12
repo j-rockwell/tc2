@@ -16,12 +16,24 @@ struct NavigationView: View {
                     Label("Search", systemImage: "magnifyingglass")
                 }
             
-            NewSessionView()
-                .tabItem {
-                    Label("New Session", systemImage: "dumbbell.fill")
-                }
-                .environmentObject(authManager)
-                .environmentObject(exerciseSessionManager)
+            if exerciseSessionManager.currentSession != nil {
+                SessionView(
+                    session: exerciseSessionManager.currentSession!,
+                    state: exerciseSessionManager.currentState!
+                )
+                    .tabItem {
+                        Label("Session", systemImage: "dumbbell.fill")
+                    }
+                    .environmentObject(authManager)
+                    .environmentObject(exerciseSessionManager)
+            } else {
+                NewSessionView()
+                    .tabItem {
+                        Label("New Session", systemImage: "dumbbell.fill")
+                    }
+                    .environmentObject(authManager)
+                    .environmentObject(exerciseSessionManager)
+            }
             
             AnalyticsView()
                 .tabItem {
@@ -51,6 +63,36 @@ struct NavigationView: View {
     )
     
     let mockExerciseManager = ExerciseSessionManager()
+    mockExerciseManager.currentSession = ExerciseSession(
+        id: "123",
+        name: "Example Session",
+        status: .active,
+        ownerId: "user-id-here",
+        createdAt: Date(),
+        updatedAt: Date(),
+        participants: [],
+        invitations: []
+    )
+    
+    mockExerciseManager.currentState = ExerciseSessionState(
+        sessionId: "123",
+        accountId: "user-id-here",
+        version: 0,
+        items: [ExerciseSessionStateItem(
+            id: "123",
+            order: 1,
+            participants: [],
+            type: .single,
+            rest: 60,
+            meta: [ExerciseSessionItemMeta(internalId: "internal-id", name: "Bench Press", type: .weightReps)],
+            sets:
+            [
+                ExerciseSessionStateItemSet(id: "set-id-1", order: 1, metrics: ExerciseSessionStateItemMetric(reps: 5, weight: Weight(value: 135.0, unit: .pound)), type: .workingSet, complete: false),
+                ExerciseSessionStateItemSet(id: "set-id-2", order: 2, metrics: ExerciseSessionStateItemMetric(reps: 5, weight: Weight(value: 185.0, unit: .pound)), type: .workingSet, complete: false),
+                ExerciseSessionStateItemSet(id: "set-id-3", order: 3, metrics: ExerciseSessionStateItemMetric(reps: 5, weight: Weight(value: 225.0, unit: .pound)), type: .workingSet, complete: false)
+            ])
+        ]
+    )
     
     return NavigationView()
         .environmentObject(mockAuthManager)

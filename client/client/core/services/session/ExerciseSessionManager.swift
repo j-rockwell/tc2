@@ -6,6 +6,7 @@ class ExerciseSessionManager: ObservableObject {
     let logger = AppLogger(subsystem: "dev.jrockwell.client", category: "esm")
     
     @Published var currentSession: ExerciseSession? = nil
+    @Published var currentState: ExerciseSessionState? = nil
     @Published var isLoading = true
     @Published var socketConnectionStatus: WebSocketConnectionState = .disconnected
     @Published var socketConnectionError: String? = nil
@@ -44,7 +45,37 @@ class ExerciseSessionManager: ObservableObject {
         logger.info("Disconnected from Exercise Session Web Socket")
     }
     
+    func createOfflineSession() async {
+        logger.info("Creating an offline session...")
+        
+        isLoading = true
+        
+        currentSession = ExerciseSession(
+            id: "",
+            name: "My Workout",
+            status: .active,
+            ownerId: "",
+            createdAt: Date(),
+            updatedAt: Date(),
+            participants: [],
+            invitations: [],
+        )
+        
+        currentState = ExerciseSessionState(
+            sessionId: "",
+            accountId: "",
+            version: 0,
+            items: [],
+        )
+        
+        isLoading = false
+        
+        logger.info("Finished creating an offline session")
+    }
+    
     func createSession() async {
+        logger.info("Creating an online session...")
+        
         isLoading = true
         
         do {
@@ -75,6 +106,8 @@ class ExerciseSessionManager: ObservableObject {
         }
         
         isLoading = false
+        
+        logger.info("Finished creating an online session")
     }
     
     func joinSession(sessionId: String) async {
@@ -132,6 +165,6 @@ class ExerciseSessionManager: ObservableObject {
     }
     
     private func handleIncomingMessage(_ message: ExerciseSessionMessage) {
-        logger.info("Incoming Web Socket Message: \(message.type.rawValue)")
+        
     }
 }
