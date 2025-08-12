@@ -148,6 +148,7 @@ async def create_session(
     current_user: Dict[str, Any] = Depends(read_request_account_id),
     db: Mongo = Depends(get_mongo),
     redis: Redis = Depends(get_redis),
+    response_model=SessionCreateResponse,
 ) -> SessionCreateResponse:
     try:
         account_id = current_user["id"]
