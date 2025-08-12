@@ -200,6 +200,12 @@ async def register_esms_handlers(esms: ExerciseSessionMessageService, mongo: Mon
         if not op.session_id:
             await _send_error(esms, conn_id, op.account_id, "Not in a session", op.id)
             return
+        
+        meta_id = op.payload.get("meta_id")
+        if not meta_id:
+            await _send_error(esms, conn_id, op.account_id, "meta_id required", op.id)
+            return
+        
         exercise_id = op.payload.get("exercise_id")
         set_data = op.payload.get("set", {})
         if not exercise_id:
@@ -216,6 +222,7 @@ async def register_esms_handlers(esms: ExerciseSessionMessageService, mongo: Mon
             if item.id == exercise_id:
                 new_set = ExerciseSessionStateItemSet(
                     id=str(uuid4()),
+                    meta_id=meta_id,
                     order=len(item.sets) + 1,
                     metrics=ExerciseSessionStateItemMetric(**set_data.get("metrics", {})),
                     type=set_data.get("type", "working"),

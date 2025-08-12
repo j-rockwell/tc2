@@ -102,6 +102,7 @@ class ExerciseSessionStateItemMetric(BaseModel):
 
 class ExerciseSessionStateItemSet(BaseModel):
     id: str
+    meta_id: str
     order: int = 1
     metrics: ExerciseSessionStateItemMetric
     type: ExerciseSetType
