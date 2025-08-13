@@ -164,6 +164,15 @@ class ExerciseSessionManager: ObservableObject {
             .store(in: &cancellables)
     }
     
+    // MARK: Session Updates
+    func toggleSetComplete(eid: String, sid: String) {
+        guard var state = currentState else { return }
+        guard let itemIndex = state.items.firstIndex(where: {$0.id == eid}) else { return }
+        guard let setIndex = state.items[itemIndex].sets.firstIndex(where: {$0.id == sid}) else { return }
+        state.items[itemIndex].sets[setIndex].complete.toggle()
+        currentState = state
+    }
+    
     private func handleIncomingMessage(_ message: ExerciseSessionMessage) {
         
     }

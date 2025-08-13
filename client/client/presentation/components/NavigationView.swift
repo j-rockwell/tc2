@@ -114,8 +114,8 @@ struct NavigationView: View {
             sets:
             [
                 ExerciseSessionStateItemSet(id: "set-id-1", metaId: "internal-id", order: 1, metrics: ExerciseSessionStateItemMetric(reps: 5, weight: Weight(value: 135.0, unit: .pound)), type: .workingSet, complete: false),
-                ExerciseSessionStateItemSet(id: "set-id-2", metaId: "internal-id", order: 2, metrics: ExerciseSessionStateItemMetric(reps: 5, weight: Weight(value: 185.0, unit: .pound)), type: .workingSet, complete: false),
-                ExerciseSessionStateItemSet(id: "set-id-3", metaId: "internal-id", order: 3, metrics: ExerciseSessionStateItemMetric(reps: 5, weight: Weight(value: 225.0, unit: .pound)), type: .workingSet, complete: false)
+                ExerciseSessionStateItemSet(id: "set-id-2", metaId: "internal-id", order: 2, metrics: ExerciseSessionStateItemMetric(reps: 6, weight: Weight(value: 185.0, unit: .pound)), type: .workingSet, complete: false),
+                ExerciseSessionStateItemSet(id: "set-id-3", metaId: "internal-id", order: 3, metrics: ExerciseSessionStateItemMetric(reps: 7, weight: Weight(value: 225.0, unit: .pound)), type: .workingSet, complete: false)
             ])
         ]
     )

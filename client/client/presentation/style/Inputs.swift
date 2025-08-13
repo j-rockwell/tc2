@@ -82,3 +82,52 @@ public struct InputField: View {
         }
     }
 }
+
+struct TimeInput: View {
+    @Binding var seconds: Int
+    
+    @State private var hoursText = "0"
+    @State private var minutesText = "00"
+    @State private var secondsText = "00"
+    
+    var body: some View {
+        HStack {
+            
+        }
+    }
+    
+    @ViewBuilder
+    private func numberField(_ text: Binding<String>, placeholder: String, max: Int?, padTo2: Bool = false) -> some View {
+        TextField(placeholder, text: text)
+            .keyboardType(.numberPad)
+            .multilineTextAlignment(.trailing)
+            .frame(minWidth: padTo2 ? 36 : 24)
+            .onChange(of: text.wrappedValue) {
+                var filtered = text.wrappedValue.filter(\.isNumber)
+                if filtered.isEmpty { filtered = "0" }
+                if let max, let n = Int(filtered) { filtered = String(min(max, n)) }
+                if text.wrappedValue != filtered { text.wrappedValue = filtered }
+
+                seconds = componentsToSeconds(
+                    TimeComponents(
+                        hours: Int(hoursText) ?? 0,
+                        minutes: Int(minutesText) ?? 0,
+                        seconds: Int(secondsText) ?? 0
+                    )
+                )
+            }
+            .onSubmit {
+                normalizeAndPush()
+            }
+    }
+    
+    private func normalizeAndPush() {
+        let h = max(0, Int(hoursText) ?? 0)
+        let m = max(0, min(59, Int(minutesText) ?? 0))
+        let s = max(0, min(59, Int(secondsText) ?? 0))
+        hoursText = String(h)
+        minutesText = String(format: "%02d", m)
+        secondsText = String(format: "%02d", s)
+        seconds = componentsToSeconds(TimeComponents(hours: h, minutes: m, seconds: s))
+    }
+}
