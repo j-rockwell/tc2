@@ -42,7 +42,7 @@ struct SessionMiniView: View {
         } else {
             HStack {
                 VStack(alignment: .leading) {
-                    Text("Exercise Complete")
+                    Text("Session Complete")
                         .font(Typography.headline)
                         .frame(maxWidth: .infinity, alignment: .leading)
                     
