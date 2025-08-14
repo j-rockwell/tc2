@@ -20,10 +20,8 @@ struct NavigationView: View {
                 }
                 .tag(1)
             
-            if exerciseSessionManager.currentSession != nil {
-                SessionView(
-                    session: exerciseSessionManager.currentSession!,
-                    state: exerciseSessionManager.currentState!)
+            if exerciseSessionManager.currentSession != nil && exerciseSessionManager.currentState != nil {
+                SessionView(session: exerciseSessionManager.currentSession!, state: exerciseSessionManager.currentState!)
                     .tabItem {
                         Label("Session", systemImage: "dumbbell.fill")
                     }
@@ -113,7 +111,7 @@ struct NavigationView: View {
             meta: [ExerciseSessionItemMeta(internalId: "internal-id", name: "Bench Press", type: .weightReps)],
             sets:
             [
-                ExerciseSessionStateItemSet(id: "set-id-1", metaId: "internal-id", order: 1, metrics: ExerciseSessionStateItemMetric(reps: 5, weight: Weight(value: 135.0, unit: .pound)), type: .workingSet, complete: false),
+                ExerciseSessionStateItemSet(id: "set-id-1", metaId: "internal-id", order: 1, metrics: ExerciseSessionStateItemMetric(reps: 5, weight: Weight(value: 185.0, unit: .pound), distance: Distance(value: 40, unit: .yard)), type: .warmupSet, complete: false),
                 ExerciseSessionStateItemSet(id: "set-id-2", metaId: "internal-id", order: 2, metrics: ExerciseSessionStateItemMetric(reps: 6, weight: Weight(value: 185.0, unit: .pound)), type: .workingSet, complete: false),
                 ExerciseSessionStateItemSet(id: "set-id-3", metaId: "internal-id", order: 3, metrics: ExerciseSessionStateItemMetric(reps: 7, weight: Weight(value: 225.0, unit: .pound)), type: .workingSet, complete: false)
             ])

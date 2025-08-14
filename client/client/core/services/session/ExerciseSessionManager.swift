@@ -173,6 +173,32 @@ class ExerciseSessionManager: ObservableObject {
         currentState = state
     }
     
+    func reorderSet(eid: String, fromSid: String, toSid: String) {
+        guard let state = currentState else { return }
+        guard let itemIndex = state.items.firstIndex(where: {$0.id == eid}) else { return }
+        guard fromSid != toSid else { return }
+        
+        var sets = state.items[itemIndex].sets
+        
+        guard let fromIndex = sets.firstIndex(where: {$0.id == fromSid}) else { return }
+        guard let toIndex = sets.firstIndex(where: {$0.id == toSid}) else { return }
+        
+        let movedSet = sets.remove(at: fromIndex)
+        sets.insert(movedSet, at: toIndex)
+        currentState = state
+    }
+    
+    func updateSetOrders(eid: String) {
+        guard var state = currentState else { return }
+        guard let itemIndex = state.items.firstIndex(where: {$0.id == eid}) else { return }
+        
+        for (index, _) in state.items[itemIndex].sets.enumerated() {
+            state.items[itemIndex].sets[index].order = index + 1
+        }
+        
+        currentState = state
+    }
+    
     private func handleIncomingMessage(_ message: ExerciseSessionMessage) {
         
     }
