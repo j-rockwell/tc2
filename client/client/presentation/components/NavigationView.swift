@@ -102,7 +102,8 @@ struct NavigationView: View {
         sessionId: "123",
         accountId: "user-id-here",
         version: 0,
-        items: [ExerciseSessionStateItem(
+        items: [
+            ExerciseSessionStateItem(
             id: "123",
             order: 1,
             participants: [],
@@ -114,6 +115,28 @@ struct NavigationView: View {
                 ExerciseSessionStateItemSet(id: "set-id-1", metaId: "internal-id", order: 1, metrics: ExerciseSessionStateItemMetric(reps: 5, weight: Weight(value: 185.0, unit: .pound), distance: Distance(value: 40, unit: .yard)), type: .warmupSet, complete: false),
                 ExerciseSessionStateItemSet(id: "set-id-2", metaId: "internal-id", order: 2, metrics: ExerciseSessionStateItemMetric(reps: 6, weight: Weight(value: 185.0, unit: .pound)), type: .workingSet, complete: false),
                 ExerciseSessionStateItemSet(id: "set-id-3", metaId: "internal-id", order: 3, metrics: ExerciseSessionStateItemMetric(reps: 7, weight: Weight(value: 225.0, unit: .pound)), type: .workingSet, complete: false)
+            ]),
+            ExerciseSessionStateItem(
+            id: "456",
+            order: 2,
+            participants: [],
+            type: .single,
+            rest: 60,
+            meta: [ExerciseSessionItemMeta(internalId: "internal-id", name: "Run", type: .distanceTime)],
+            sets:
+            [
+                ExerciseSessionStateItemSet(id: "set-id-1", metaId: "internal-id", order: 1, metrics: ExerciseSessionStateItemMetric(reps: 5, weight: Weight(value: 185.0, unit: .pound), duration: Duration(value: 3600), distance: Distance(value: 1, unit: .mile)), type: .workingSet, complete: false),
+            ]),
+            ExerciseSessionStateItem(
+            id: "789",
+            order: 3,
+            participants: [],
+            type: .single,
+            rest: 60,
+            meta: [ExerciseSessionItemMeta(internalId: "internal-id", name: "Decline Sit Up", type: .reps)],
+            sets:
+            [
+                ExerciseSessionStateItemSet(id: "set-id-1", metaId: "internal-id", order: 1, metrics: ExerciseSessionStateItemMetric(reps: 16, weight: Weight(value: 185.0, unit: .pound), distance: Distance(value: 40, unit: .yard)), type: .workingSet, complete: false),
             ])
         ]
     )

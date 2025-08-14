@@ -224,7 +224,19 @@ struct ExerciseItemCardSetRowContainer: View {
             switch exerciseType {
             case .reps:
                     RepsInputView(reps: exerciseSet.metrics.reps, isComplete: exerciseSet.complete, exerciseId: exerciseId, exerciseSetId: exerciseSet.id)
-                default: EmptyView()
+            case .weightReps:
+                WeightInputView(weight: exerciseSet.metrics.weight, isComplete: exerciseSet.complete, exerciseId: exerciseId, exerciseSetId: exerciseSet.id)
+                RepsInputView(reps: exerciseSet.metrics.reps, isComplete: exerciseSet.complete, exerciseId: exerciseId, exerciseSetId: exerciseSet.id)
+            case .time:
+                DurationInputView(duration: exerciseSet.metrics.duration, isComplete: exerciseSet.complete, exerciseId: exerciseId, exerciseSetId: exerciseSet.id)
+            case .weightTime:
+                WeightInputView(weight: exerciseSet.metrics.weight, isComplete: exerciseSet.complete, exerciseId: exerciseId, exerciseSetId: exerciseSet.id)
+                DurationInputView(duration: exerciseSet.metrics.duration, isComplete: exerciseSet.complete, exerciseId: exerciseId, exerciseSetId: exerciseSet.id)
+            case .distance:
+                DistanceInputView(distance: exerciseSet.metrics.distance, isComplete: exerciseSet.complete, exerciseId: exerciseId, exerciseSetId: exerciseSet.id)
+            case .distanceTime:
+                DistanceInputView(distance: exerciseSet.metrics.distance, isComplete: exerciseSet.complete, exerciseId: exerciseId, exerciseSetId: exerciseSet.id)
+                DurationInputView(duration: exerciseSet.metrics.duration, isComplete: exerciseSet.complete, exerciseId: exerciseId, exerciseSetId: exerciseSet.id)
             }
             
             CompleteSetButton(isComplete: exerciseSet.complete, exerciseId: exerciseId, setId: exerciseSet.id)
@@ -289,10 +301,10 @@ struct SetNumberView: View {
             participants: [],
             type: .single,
             rest: 60,
-            meta: [ExerciseSessionItemMeta(internalId: "internal-id", name: "Bench Press", type: .reps)],
+            meta: [ExerciseSessionItemMeta(internalId: "internal-id", name: "Bench Press", type: .weightTime)],
             sets:
             [
-                ExerciseSessionStateItemSet(id: "set-id-1", metaId: "internal-id", order: 1, metrics: ExerciseSessionStateItemMetric(reps: 5, weight: Weight(value: 185.0, unit: .pound), distance: Distance(value: 1.0, unit: .mile)), type: .warmupSet, complete: false),
+                ExerciseSessionStateItemSet(id: "set-id-1", metaId: "internal-id", order: 1, metrics: ExerciseSessionStateItemMetric(reps: 5, weight: Weight(value: 185.0, unit: .pound), duration: Duration(value: 3600), distance: Distance(value: 1.0, unit: .mile)), type: .warmupSet, complete: false),
                 ExerciseSessionStateItemSet(id: "set-id-2", metaId: "internal-id", order: 2, metrics: ExerciseSessionStateItemMetric(reps: 6, weight: Weight(value: 185.0, unit: .pound)), type: .dropSet, complete: false),
                 ExerciseSessionStateItemSet(id: "set-id-3", metaId: "internal-id", order: 3, metrics: ExerciseSessionStateItemMetric(reps: 7, weight: Weight(value: 225.0, unit: .pound)), type: .workingSet, complete: false)
             ]),
