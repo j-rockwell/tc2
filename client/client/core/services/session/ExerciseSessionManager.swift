@@ -199,6 +199,22 @@ class ExerciseSessionManager: ObservableObject {
         currentState = state
     }
     
+    func updateExerciseMetrics(exerciseId: String, exerciseSetId: String, metrics: ExerciseSessionStateItemMetric) {
+        guard var state = currentState else { return }
+        guard let exerciseIndex = state.items.firstIndex(where: {$0.id == exerciseId}) else { return }
+        guard let exerciseSetIndex = state.items[exerciseIndex].sets.firstIndex(where: {$0.id == exerciseSetId}) else { return }
+        
+        state.items[exerciseIndex].sets[exerciseSetIndex].metrics = metrics
+        state.version += 1
+        currentState = state
+        
+        if socketConnectionStatus == .connected, let sessionId = currentSession?.id {
+            Task {
+                // TODO: Send update message
+            }
+        }
+    }
+    
     private func handleIncomingMessage(_ message: ExerciseSessionMessage) {
         
     }

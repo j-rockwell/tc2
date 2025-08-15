@@ -32,7 +32,7 @@ struct RepsInputView: View {
                     if !focused { save() }
                 }
         } else {
-            Button(action: { isEditing = true }) {
+            Button(action: tryEditor) {
                 Text(reps?.description ?? "--")
                     .font(Typography.body)
                     .fontWeight(.medium)
@@ -45,9 +45,27 @@ struct RepsInputView: View {
         }
     }
     
+    private func tryEditor() {
+        if isComplete || isEditing { return }
+        isEditing = true
+    }
+    
     private func save() {
         isEditing = false
         guard let value = Int(pendingValue), value >= 0 else { return }
-        print("update metrics with \(value)")
+        
+        updateMetrics { metrics in
+            metrics.reps = value
+        }
+    }
+    
+    private func updateMetrics(_ update: (inout ExerciseSessionStateItemMetric) -> Void) {
+        guard let state = exerciseSessionManager.currentState,
+              let itemIndex = state.items.firstIndex(where: {$0.id == exerciseId}),
+              let setIndex = state.items[itemIndex].sets.firstIndex(where: {$0.id == exerciseSetId}) else { return }
+        
+        var metrics = state.items[itemIndex].sets[setIndex].metrics
+        update(&metrics)
+        exerciseSessionManager.updateExerciseMetrics(exerciseId: exerciseId, exerciseSetId: exerciseSetId, metrics: metrics)
     }
 }

@@ -104,7 +104,7 @@ struct DurationInputView: View {
                  }
              }
         } else {
-            Button(action: { isEditing = true }) {
+            Button(action: tryEditor) {
                 Text(displayValue)
                     .font(Typography.body)
                     .fontWeight(.medium)
@@ -181,6 +181,11 @@ struct DurationInputView: View {
         }
     }
     
+    private func tryEditor() {
+        if isComplete || isEditing { return }
+        isEditing = true
+    }
+    
     private func save() {
         isEditing = false
         
@@ -189,9 +194,19 @@ struct DurationInputView: View {
         let seconds = min(59, Int(secondsText) ?? 0)
         let totalSeconds = max(0, hours * 3600 + minutes * 60 + seconds)
         
-        /* updateMetrics { metrics in
+        updateMetrics { metrics in
             metrics.duration = Duration(value: totalSeconds)
-        } */
+        }
+    }
+    
+    private func updateMetrics(_ update: (inout ExerciseSessionStateItemMetric) -> Void) {
+        guard let state = exerciseSessionManager.currentState,
+              let itemIndex = state.items.firstIndex(where: {$0.id == exerciseId}),
+              let setIndex = state.items[itemIndex].sets.firstIndex(where: {$0.id == exerciseSetId}) else { return }
+        
+        var metrics = state.items[itemIndex].sets[setIndex].metrics
+        update(&metrics)
+        exerciseSessionManager.updateExerciseMetrics(exerciseId: exerciseId, exerciseSetId: exerciseSetId, metrics: metrics)
     }
 }
 

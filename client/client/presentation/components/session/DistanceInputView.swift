@@ -56,7 +56,7 @@ struct DistanceInputView: View {
                 if !focused { save() }
             }
         } else {
-            Button(action: { isEditing = true }) {
+            Button(action: tryEditor) {
                 Text(displayValue)
                     .font(Typography.body)
                     .fontWeight(.medium)
@@ -69,9 +69,28 @@ struct DistanceInputView: View {
         }
     }
     
+    private func tryEditor() {
+        if isComplete || isEditing { return }
+        isEditing = true
+    }
+    
     private func save() {
         isEditing = false
         guard let value = Double(pendingValue), value >= 0 else { return }
+        
+        updateMetrics { metrics in
+            metrics.distance = Distance(value: value, unit: selectedUnit)
+        }
+    }
+    
+    private func updateMetrics(_ update: (inout ExerciseSessionStateItemMetric) -> Void) {
+        guard let state = exerciseSessionManager.currentState,
+              let itemIndex = state.items.firstIndex(where: {$0.id == exerciseId}),
+              let setIndex = state.items[itemIndex].sets.firstIndex(where: {$0.id == exerciseSetId}) else { return }
+        
+        var metrics = state.items[itemIndex].sets[setIndex].metrics
+        update(&metrics)
+        exerciseSessionManager.updateExerciseMetrics(exerciseId: exerciseId, exerciseSetId: exerciseSetId, metrics: metrics)
     }
 }
 

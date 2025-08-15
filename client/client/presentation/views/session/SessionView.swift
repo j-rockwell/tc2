@@ -79,6 +79,7 @@ struct SessionView: View {
                 } else {
                     ForEach(state.items) { item in
                         ExerciseItemCard(item: item)
+                            .environmentObject(exerciseSessionManager)
                     }
                 }
             }
@@ -131,6 +132,7 @@ struct ExerciseItemCard: View {
                 .padding(.bottom, Spacing.sm)
             
             ExerciseItemCardGrid(item: item, exerciseType: getExerciseType())
+                .environmentObject(exerciseSessionManager)
         }
         .padding(.horizontal, Spacing.md)
         .padding(.vertical, Spacing.md)
@@ -166,6 +168,7 @@ struct ExerciseItemCardGrid: View {
                         exerciseId: item.id,
                         exerciseType: exerciseType,
                         columns: gridColumns)
+                    .environmentObject(exerciseSessionManager)
                 }
             }
         }
@@ -240,6 +243,7 @@ struct ExerciseItemCardSetRowContainer: View {
             }
             
             CompleteSetButton(isComplete: exerciseSet.complete, exerciseId: exerciseId, setId: exerciseSet.id)
+                .environmentObject(exerciseSessionManager)
         }
     }
 }
