@@ -33,88 +33,90 @@ struct DurationInputView: View {
     }
     
     var body: some View {
-        if isEditing {
-            HStack(spacing: 0) {
-                TextField("00", text: $hoursText)
-                    .keyboardType(.numberPad)
-                    .multilineTextAlignment(.center)
-                    .font(Typography.body)
-                    .fontWeight(.medium)
-                    .focused($focusedField, equals: .hours)
-                    .frame(width: 28)
-                    .onChange(of: hoursText) { _, newValue in
-                        handleTextChange(newValue, field: .hours)
-                    }
-                    .onSubmit {
-                        focusedField = .minutes
-                    }
+        HStack {
+            if isEditing {
+                HStack(spacing: 0) {
+                    TextField("00", text: $hoursText)
+                        .keyboardType(.numberPad)
+                        .multilineTextAlignment(.center)
+                        .font(Typography.body)
+                        .fontWeight(.medium)
+                        .focused($focusedField, equals: .hours)
+                        .frame(width: 28)
+                        .onChange(of: hoursText) { _, newValue in
+                            handleTextChange(newValue, field: .hours)
+                        }
+                        .onSubmit {
+                            focusedField = .minutes
+                        }
 
-                Text(":")
-                    .font(Typography.body)
-                    .fontWeight(.medium)
-                    .foregroundColor(Colors.onSurface.opacity(0.6))
+                    Text(":")
+                        .font(Typography.body)
+                        .fontWeight(.medium)
+                        .foregroundColor(Colors.onSurface.opacity(0.6))
 
-                TextField("00", text: $minutesText)
-                    .keyboardType(.numberPad)
-                    .multilineTextAlignment(.center)
-                    .font(Typography.body)
-                    .fontWeight(.medium)
-                    .focused($focusedField, equals: .minutes)
-                    .frame(width: 28)
-                    .onChange(of: minutesText) { _, newValue in
-                        handleTextChange(newValue, field: .minutes)
-                    }
-                    .onSubmit {
-                        focusedField = .seconds
-                    }
-                
-                Text(":")
-                    .font(Typography.body)
-                    .fontWeight(.medium)
-                    .foregroundColor(Colors.onSurface.opacity(0.6))
-                
-                TextField("00", text: $secondsText)
-                    .keyboardType(.numberPad)
-                    .multilineTextAlignment(.center)
-                    .font(Typography.body)
-                    .fontWeight(.medium)
-                    .focused($focusedField, equals: .seconds)
-                    .frame(width: 28)
-                    .onChange(of: secondsText) { _, newValue in
-                        handleTextChange(newValue, field: .seconds)
-                    }
-                    .onSubmit {
-                        focusedField = nil
-                    }
-            }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 2)
-            .background(Colors.primary.opacity(0.1))
-            .cornerRadius(Radii.small)
-            .onAppear {
-                setupInitialValues()
-                // Small delay to ensure keyboard appears properly
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    focusedField = .hours
+                    TextField("00", text: $minutesText)
+                        .keyboardType(.numberPad)
+                        .multilineTextAlignment(.center)
+                        .font(Typography.body)
+                        .fontWeight(.medium)
+                        .focused($focusedField, equals: .minutes)
+                        .frame(width: 28)
+                        .onChange(of: minutesText) { _, newValue in
+                            handleTextChange(newValue, field: .minutes)
+                        }
+                        .onSubmit {
+                            focusedField = .seconds
+                        }
+                    
+                    Text(":")
+                        .font(Typography.body)
+                        .fontWeight(.medium)
+                        .foregroundColor(Colors.onSurface.opacity(0.6))
+                    
+                    TextField("00", text: $secondsText)
+                        .keyboardType(.numberPad)
+                        .multilineTextAlignment(.center)
+                        .font(Typography.body)
+                        .fontWeight(.medium)
+                        .focused($focusedField, equals: .seconds)
+                        .frame(width: 28)
+                        .onChange(of: secondsText) { _, newValue in
+                            handleTextChange(newValue, field: .seconds)
+                        }
+                        .onSubmit {
+                            focusedField = nil
+                        }
                 }
-             }
-             .onChange(of: focusedField) { _, newValue in
-                 if newValue == nil {
-                     save()
+                .padding(.horizontal, 8)
+                .padding(.vertical, 2)
+                .background(Colors.primary.opacity(0.1))
+                .cornerRadius(Radii.small)
+                .onAppear {
+                    setupInitialValues()
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        focusedField = .hours
+                    }
                  }
-             }
-        } else {
-            Button(action: tryEditor) {
-                Text(displayValue)
-                    .font(Typography.body)
-                    .fontWeight(.medium)
-                    .foregroundColor(duration == nil ? Colors.onSurface.opacity(0.3) :
-                                   (isComplete ? Colors.onSurface.opacity(0.5) : Colors.onSurface))
-                    .frame(maxWidth: .infinity)
-                    .monospacedDigit()
+                 .onChange(of: focusedField) { _, newValue in
+                     if newValue == nil {
+                         save()
+                     }
+                 }
+            } else {
+                Button(action: tryEditor) {
+                    Text(displayValue)
+                        .font(Typography.body)
+                        .fontWeight(.medium)
+                        .foregroundColor(duration == nil ? Colors.onSurface.opacity(0.3) :
+                                       (isComplete ? Colors.onSurface.opacity(0.5) : Colors.onSurface))
+                        .monospacedDigit()
+                }
+                .buttonStyle(PlainButtonStyle())
             }
-            .buttonStyle(PlainButtonStyle())
+            Spacer()
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func setupInitialValues() {

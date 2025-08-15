@@ -5,42 +5,42 @@ struct GridConfiguration {
         switch type {
         case .weightReps:
             return [
-                GridItem(.fixed(45)),
-                GridItem(.flexible(minimum: 80)),
-                GridItem(.flexible(minimum: 60)),
-                GridItem(.fixed(44))
+                GridItem(.fixed(50), spacing: 16, alignment: .leading),
+                GridItem(.flexible(minimum: 90), spacing: 16, alignment: .leading),
+                GridItem(.flexible(minimum: 70), spacing: 16, alignment: .leading),
+                GridItem(.fixed(50), spacing: 0, alignment: .leading)
             ]
         case .weightTime:
             return [
-                GridItem(.fixed(45)),
-                GridItem(.flexible(minimum: 80)),
-                GridItem(.flexible(minimum: 80)),
-                GridItem(.fixed(44))
+                GridItem(.fixed(50), spacing: 16, alignment: .leading),
+                GridItem(.flexible(minimum: 90), spacing: 16, alignment: .leading),
+                GridItem(.flexible(minimum: 90), spacing: 16, alignment: .leading),
+                GridItem(.fixed(50), spacing: 0, alignment: .leading)
             ]
         case .distanceTime:
             return [
-                GridItem(.fixed(45)),
-                GridItem(.flexible(minimum: 80)),
-                GridItem(.flexible(minimum: 80)),
-                GridItem(.fixed(44))
+                GridItem(.fixed(50), spacing: 16, alignment: .leading),
+                GridItem(.flexible(minimum: 90), spacing: 16, alignment: .leading),
+                GridItem(.flexible(minimum: 90), spacing: 16, alignment: .leading),
+                GridItem(.fixed(50), spacing: 0, alignment: .leading)
             ]
         case .reps:
             return [
-                GridItem(.fixed(45)),
-                GridItem(.flexible(minimum: 80)),
-                GridItem(.fixed(44))
+                GridItem(.fixed(50), spacing: 16, alignment: .leading),
+                GridItem(.flexible(minimum: 90), spacing: 16, alignment: .leading),
+                GridItem(.fixed(50), spacing: 0, alignment: .leading)
             ]
         case .time:
             return [
-                GridItem(.fixed(45)),
-                GridItem(.flexible(minimum: 100)),
-                GridItem(.fixed(44))
+                GridItem(.fixed(50), spacing: 16, alignment: .leading),
+                GridItem(.flexible(minimum: 110), spacing: 16, alignment: .leading),
+                GridItem(.fixed(50), spacing: 0, alignment: .leading)
             ]
         case .distance:
             return [
-                GridItem(.fixed(45)),
-                GridItem(.flexible(minimum: 100)),
-                GridItem(.fixed(44))
+                GridItem(.fixed(50), spacing: 16, alignment: .leading),
+                GridItem(.flexible(minimum: 110), spacing: 16, alignment: .leading),
+                GridItem(.fixed(50), spacing: 0, alignment: .leading)
             ]
         }
     }
@@ -188,6 +188,7 @@ struct CompleteSetButton: View {
                 .imageScale(.medium)
         }
         .buttonStyle(PlainButtonStyle())
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
     
     private func toggleComplete() {
@@ -195,19 +196,18 @@ struct CompleteSetButton: View {
     }
 }
 
-
 struct ExerciseItemCardRowHeader: View {
     let headers: [String]
     let columns: [GridItem]
     
     var body: some View {
-        LazyVGrid(columns: columns) {
+        LazyVGrid(columns: columns, alignment: .leading) {
             ForEach(headers, id: \.self) { header in
                 Text(header)
                     .font(Typography.caption1)
                     .fontWeight(.semibold)
                     .foregroundColor(Colors.onSurface)
-                    .frame(maxWidth: .infinity, alignment: header == "Set" ? .leading : .center)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
     }
@@ -221,25 +221,34 @@ struct ExerciseItemCardSetRowContainer: View {
     let columns: [GridItem]
     
     var body: some View {
-        LazyVGrid(columns: columns) {
+        LazyVGrid(columns: columns, alignment: .leading) {
             SetNumberView(value: exerciseSet.order, type: exerciseSet.type, isComplete: exerciseSet.complete)
             
             switch exerciseType {
             case .reps:
-                    RepsInputView(reps: exerciseSet.metrics.reps, isComplete: exerciseSet.complete, exerciseId: exerciseId, exerciseSetId: exerciseSet.id)
+                RepsInputView(reps: exerciseSet.metrics.reps, isComplete: exerciseSet.complete, exerciseId: exerciseId, exerciseSetId: exerciseSet.id)
+                    .environmentObject(exerciseSessionManager)
             case .weightReps:
                 WeightInputView(weight: exerciseSet.metrics.weight, isComplete: exerciseSet.complete, exerciseId: exerciseId, exerciseSetId: exerciseSet.id)
+                    .environmentObject(exerciseSessionManager)
                 RepsInputView(reps: exerciseSet.metrics.reps, isComplete: exerciseSet.complete, exerciseId: exerciseId, exerciseSetId: exerciseSet.id)
+                    .environmentObject(exerciseSessionManager)
             case .time:
                 DurationInputView(duration: exerciseSet.metrics.duration, isComplete: exerciseSet.complete, exerciseId: exerciseId, exerciseSetId: exerciseSet.id)
+                    .environmentObject(exerciseSessionManager)
             case .weightTime:
                 WeightInputView(weight: exerciseSet.metrics.weight, isComplete: exerciseSet.complete, exerciseId: exerciseId, exerciseSetId: exerciseSet.id)
+                    .environmentObject(exerciseSessionManager)
                 DurationInputView(duration: exerciseSet.metrics.duration, isComplete: exerciseSet.complete, exerciseId: exerciseId, exerciseSetId: exerciseSet.id)
+                    .environmentObject(exerciseSessionManager)
             case .distance:
                 DistanceInputView(distance: exerciseSet.metrics.distance, isComplete: exerciseSet.complete, exerciseId: exerciseId, exerciseSetId: exerciseSet.id)
+                    .environmentObject(exerciseSessionManager)
             case .distanceTime:
                 DistanceInputView(distance: exerciseSet.metrics.distance, isComplete: exerciseSet.complete, exerciseId: exerciseId, exerciseSetId: exerciseSet.id)
+                    .environmentObject(exerciseSessionManager)
                 DurationInputView(duration: exerciseSet.metrics.duration, isComplete: exerciseSet.complete, exerciseId: exerciseId, exerciseSetId: exerciseSet.id)
+                    .environmentObject(exerciseSessionManager)
             }
             
             CompleteSetButton(isComplete: exerciseSet.complete, exerciseId: exerciseId, setId: exerciseSet.id)

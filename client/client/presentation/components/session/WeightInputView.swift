@@ -21,58 +21,61 @@ struct WeightInputView: View {
     }
     
     var body: some View {
-        if isEditing {
-            HStack(spacing: 2) {
-                TextField("0", text: $pendingValue)
-                    .keyboardType(.decimalPad)
-                    .multilineTextAlignment(.center)
-                    .font(Typography.body)
-                    .fontWeight(.medium)
-                    .focused($isFocused)
-                    .frame(width: 50)
-                
-                Menu {
-                    ForEach([WeightUnit.pound, WeightUnit.kilogram], id: \.self) { unit in
-                        Button(action: { selectedUnit = unit }) {
-                            HStack {
-                                Text(unit.rawValue)
-                                if unit == selectedUnit {
-                                    Spacer()
-                                    Image(systemName: "checkmark")
+        HStack {
+            if isEditing {
+                HStack(spacing: 2) {
+                    TextField("0", text: $pendingValue)
+                        .keyboardType(.decimalPad)
+                        .multilineTextAlignment(.leading)
+                        .font(Typography.body)
+                        .fontWeight(.medium)
+                        .focused($isFocused)
+                        .frame(width: 50)
+                    
+                    Menu {
+                        ForEach([WeightUnit.pound, WeightUnit.kilogram], id: \.self) { unit in
+                            Button(action: { selectedUnit = unit }) {
+                                HStack {
+                                    Text(unit.rawValue)
+                                    if unit == selectedUnit {
+                                        Spacer()
+                                        Image(systemName: "checkmark")
+                                    }
                                 }
                             }
                         }
+                    } label: {
+                        Text(selectedUnit.rawValue)
+                            .font(Typography.caption1)
+                            .foregroundColor(Colors.primary)
                     }
-                } label: {
-                    Text(selectedUnit.rawValue)
-                        .font(Typography.caption1)
-                        .foregroundColor(Colors.primary)
                 }
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2)
+                .background(Colors.primary.opacity(0.1))
+                .cornerRadius(Radii.small)
+                .onAppear {
+                    pendingValue = weight?.value.formatted() ?? ""
+                    selectedUnit = weight?.unit ?? .pound
+                    isFocused = true
+                }
+                .onChange(of: isFocused) { _, focused in
+                    if !focused { save() }
+                }
+            } else {
+                Button(action: tryEditor) {
+                    Text(displayValue)
+                        .font(Typography.body)
+                        .fontWeight(.medium)
+                        .foregroundColor(weight == nil ? Colors.onSurface.opacity(0.3) :
+                                       (isComplete ? Colors.onSurface.opacity(0.5) : Colors.onSurface))
+                        .monospacedDigit()
+                }
+                .buttonStyle(PlainButtonStyle())
             }
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background(Colors.primary.opacity(0.1))
-            .cornerRadius(Radii.small)
-            .onAppear {
-                pendingValue = weight?.value.formatted() ?? ""
-                selectedUnit = weight?.unit ?? .pound
-                isFocused = true
-            }
-            .onChange(of: isFocused) { _, focused in
-                if !focused { save() }
-            }
-        } else {
-            Button(action: tryEditor) {
-                Text(displayValue)
-                    .font(Typography.body)
-                    .fontWeight(.medium)
-                    .foregroundColor(weight == nil ? Colors.onSurface.opacity(0.3) :
-                                   (isComplete ? Colors.onSurface.opacity(0.5) : Colors.onSurface))
-                    .frame(maxWidth: .infinity)
-                    .monospacedDigit()
-            }
-            .buttonStyle(PlainButtonStyle())
+            Spacer()
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
     
     private func tryEditor() {
