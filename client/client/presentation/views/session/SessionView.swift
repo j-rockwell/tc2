@@ -114,7 +114,7 @@ struct ExerciseItemCard: View {
     
     private func getDisplayName() -> String {
         if item.meta.count > 1 {
-            return item.meta.map { $0.name }.joined(separator: " / ")
+            return item.meta.map { $0.name }.joined(separator: " + ")
         }
         return item.meta.first?.name ?? "Exercise"
     }
@@ -305,12 +305,16 @@ struct SetNumberView: View {
             participants: [],
             type: .single,
             rest: 60,
-            meta: [ExerciseSessionItemMeta(internalId: "internal-id", name: "Bench Press", type: .weightTime)],
+            meta: [
+                ExerciseSessionItemMeta(internalId: "internal-id", name: "Bench Press", type: .weightReps),
+                ExerciseSessionItemMeta(internalId: "internal-id-2", name: "Hammer Curl", type: .weightReps)
+            ],
             sets:
             [
                 ExerciseSessionStateItemSet(id: "set-id-1", metaId: "internal-id", order: 1, metrics: ExerciseSessionStateItemMetric(reps: 5, weight: Weight(value: 185.0, unit: .pound), duration: Duration(value: 3600), distance: Distance(value: 1.0, unit: .mile)), type: .warmupSet, complete: false),
-                ExerciseSessionStateItemSet(id: "set-id-2", metaId: "internal-id", order: 2, metrics: ExerciseSessionStateItemMetric(reps: 6, weight: Weight(value: 185.0, unit: .pound)), type: .dropSet, complete: false),
-                ExerciseSessionStateItemSet(id: "set-id-3", metaId: "internal-id", order: 3, metrics: ExerciseSessionStateItemMetric(reps: 7, weight: Weight(value: 225.0, unit: .pound)), type: .workingSet, complete: false)
+                ExerciseSessionStateItemSet(id: "superset-id-1", metaId: "internal-id-2", order: 2, metrics: ExerciseSessionStateItemMetric(reps: 8, weight: Weight(value: 40, unit: .pound)), type: .superSet, complete: false),
+                ExerciseSessionStateItemSet(id: "set-id-2", metaId: "internal-id", order: 3, metrics: ExerciseSessionStateItemMetric(reps: 6, weight: Weight(value: 185.0, unit: .pound)), type: .dropSet, complete: false),
+                ExerciseSessionStateItemSet(id: "set-id-3", metaId: "internal-id", order: 4, metrics: ExerciseSessionStateItemMetric(reps: 7, weight: Weight(value: 225.0, unit: .pound)), type: .workingSet, complete: false)
             ]),
             ExerciseSessionStateItem(
             id: "456",
