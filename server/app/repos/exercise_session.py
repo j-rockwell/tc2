@@ -114,6 +114,17 @@ class ExerciseSessionRepository:
             logger.warning("Bad active state for %s: %s", account_id, e)
             return None
     
+    async def get_invitation(self, session_id: str, invited_account_id: str) -> Optional[ExerciseSessionInvitation]:
+        session = await self.get_session_by_id(session_id)
+        if not session or not session.invitations:
+            return None
+        
+        for invite in session.invitations:
+            if invite.invited == invited_account_id:
+                return invite
+        
+        return None
+    
     def create_session_participant(self, account_id: str) -> ExerciseSessionParticipant:
         participant = ExerciseSessionParticipant(
             id=account_id,
