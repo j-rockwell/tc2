@@ -1,3 +1,4 @@
+from email.policy import default
 import os
 from pathlib import Path
 from pydantic import BaseSettings, Field
@@ -16,6 +17,10 @@ class Settings(BaseSettings):
     
     environment: str = Field(default="dev", env="ENVIRONMENT")
     debug: bool = Field(default=False, env="DEBUG")
+    
+    default_admin_username: str = Field(default="admin", env="DEFAULT_ADMIN_USERNAME")
+    default_admin_email: str = Field(default="email", env="DEFAULT_ADMIN_EMAIL")
+    default_admin_password: str = Field(default="Password1!", env="DEFAULT_ADMIN_PASSWORD")
     
     host: str = Field(default="0.0.0.0", env="HOST")
     port: int = Field(default=8000, env="PORT")

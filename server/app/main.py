@@ -11,6 +11,8 @@ from app.routers.exercise_session_ws import router as ExerciseSessionWebSocketRo
 from app.routers.exercise import router as ExerciseRouter
 from app.routers.exercise_session_ws import init_esms, cleanup_esms
 from app.config import settings
+from app.repos.perm import RoleRepository
+from app.repos.account import AccountRepository
 
 logging.basicConfig(
     level=logging.INFO if not settings.debug else logging.DEBUG,
@@ -22,18 +24,20 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     logger.info(f"Starting in {settings.environment} mode")
 
+    # setup mongo connection
     try:
         app.state.mongodb = Mongo(settings.mongo_uri, settings.mongo_db_name)
         mongo_connected = await app.state.mongodb.ping()
         if mongo_connected:
             logger.info("Successfully established connection to MongoDB")
-            await create_indexes(app)  # pass app
+            await create_indexes(app)
         else:
             raise RuntimeError("MongoDB connection failed")
     except Exception as e:
         logger.error(f"Failed to initialize MongoDB: {e}")
         raise
 
+    # setup redis connection
     app.state.redis = None
     try:
         r = Redis(settings.redis_uri, db=0)
@@ -46,13 +50,22 @@ async def lifespan(app: FastAPI):
         logger.info("Successfully established connection to Redis")
     except Exception as e:
         logger.error(f"Redis connection failed: {e} - continuing without Redis")
-
+        
+    # setup esms
     if app.state.redis is not None:
         try:
             await init_esms(app.state.mongodb, app.state.redis)
             logger.info("Exercise Session Message Service initialized")
         except Exception as e:
             logger.error(f"Failed to initialize Exercise Session Message Service: {e}")
+    
+    # setup default roles/accounts
+    if app.state.redis is not None and app.state.mongodb is not None and settings.environment == "dev":
+        logger.info("Attempting to perform initial role and account setup")
+        role_repo = RoleRepository(app.state.mongodb)
+        account_repo = AccountRepository(app.state.mongodb, app.state.redis)
+        await role_repo.perform_role_setup()
+        await account_repo.perform_account_setup(role_repo)
 
     try:
         yield

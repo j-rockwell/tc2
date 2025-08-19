@@ -1,8 +1,9 @@
 from datetime import date, datetime
-from app.schema.enums import PrivacyLevel, Gender
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Optional, List
 from bson import ObjectId
+
+from app.schema.enums import PrivacyLevel, Gender
 
 class ProfileBase(BaseModel):
     name: str
@@ -32,6 +33,7 @@ class AccountBase(BaseModel):
     bio: Optional[BiometricsBase]
     profile: Optional[ProfileBase]
     privacy: Optional[PrivacyBase]
+    roles: Optional[List[str]] = []
 
 class AccountInDB(AccountBase):
     id: str = Field(alias="_id")

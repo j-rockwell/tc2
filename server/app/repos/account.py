@@ -1,17 +1,58 @@
 from typing import Optional, Dict, Any, List, Tuple, Union
 from datetime import datetime, timezone
+import logging
 
 from app.db.redis import Redis
 from app.db.mongo import Mongo
+from app.repos.perm import RoleRepository
 from app.schema.account import AccountBase, AccountMeta, AccountInDB
 from app.util.hash import Hasher
+from app.config import settings
 
+logger = logging.getLogger(__name__)
 collection_name = "accounts"
 
 class AccountRepository:
     def __init__(self, mongo: Mongo, redis: Redis):
         self.mongo = mongo
         self.redis = redis
+    
+    async def perform_account_setup(self, role_repo: RoleRepository):
+        if not settings.environment == "dev":
+            logger.info("Skipping account setup in non-dev environment")
+            return
+        
+        try:            
+            admin_role = await role_repo.get_role_by_name("admin")
+            if not admin_role:
+                logger.fatal("Admin role not found, cannot create default admin account")
+                raise RuntimeError("Admin role not found, cannot create default admin account")
+            
+            admin = await self.get_account_by_key_value("username", "admin")
+            if admin:
+                logger.info("Admin account already exists, skipping setup")
+                return
+            
+            admin_account = AccountBase(
+                username=settings.default_admin_username,
+                email=settings.default_admin_email,
+                password=Hasher.make(settings.default_admin_password),
+                metadata=AccountMeta(
+                    created_at=datetime.now(timezone.utc),
+                    last_active=datetime.now(timezone.utc),
+                        email_confirmed=True
+                ),
+                bio=None,
+                profile=None,
+                privacy=None,
+                roles=[admin_role.id]
+            )
+                
+            await self.mongo.insert(collection=collection_name, document=admin_account.dict(by_alias=True, exclude_none=True))
+            logger.info("Created default admin account")
+        except Exception as e:
+            logger.error(f"Failed to perform account setup: {e}")
+            raise RuntimeError("Failed to perform account setup in the database")
     
     async def get_account_by_id(self, account_id: str) -> Optional[AccountInDB]:
         account = await self.mongo.find_one_by_id(collection=collection_name, document_id=account_id)   
