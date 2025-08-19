@@ -1,9 +1,13 @@
 from bson import ObjectId
 from fastapi import Request, WebSocket, HTTPException, status, Request, WebSocketException, Cookie, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
+
 from app.db.mongo import Mongo
 from app.db.redis import Redis
+from app.repos.account import AccountRepository
+from app.repos.perm import RoleRepository
+from app.schema.perm import RoleInDB
 from app.util.token import Tokenizer
 from app.util.session import Sessions, SessionSecurity
 from app.util.session import get_client_info
@@ -186,3 +190,27 @@ async def read_ws_account_id(
         await redis.setex(user_cache_key, 3600, user_data)
 
     return user_data
+
+async def read_permissions(
+    db: Mongo = Depends(get_mongo),
+    redis: Redis = Depends(get_redis),
+    current_user = Depends(read_request_account_id) 
+) -> List[RoleInDB]:
+    if not current_user:
+        return []
+    
+    account_id = current_user["id"]
+    if not account_id:
+        return []
+    
+    account_repo = AccountRepository(mongo=db, redis=redis)
+    account = await account_repo.get_account_by_id(account_id)
+    if not account:
+        return []
+    
+    role_repo = RoleRepository(db=db)
+    roles = await role_repo.get_account_roles(account)
+    if not roles:
+        return []
+    
+    return roles
