@@ -1,8 +1,8 @@
-from turtle import st
+from operator import add
 from fastapi import WebSocket
 from pydantic import BaseModel
 from datetime import datetime, timezone
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from enum import Enum
 from uuid import uuid4
 import asyncio
@@ -12,8 +12,10 @@ import json
 from app.db.mongo import Mongo
 from app.db.redis import Redis
 from app.repos.account import AccountRepository
+from app.repos.exercise import ExerciseMetaRepository
 from app.repos.exercise_session import ExerciseSessionRepository
-from app.schema.exercise_session import ExerciseSessionStatus
+from app.schema.exercise import ExerciseMeta
+from app.schema.exercise_session import ExerciseSessionItemMeta, ExerciseSessionStateItem, ExerciseSessionStateItemType, ExerciseSessionStatus
 
 logger = logging.getLogger(__name__)
 psub_prefix = "esms"
@@ -45,7 +47,10 @@ class ExerciseSessionOperation(BaseModel):
     version: int = 0
 
 class AddExerciseOperation(BaseModel):
-    exercise_id: str
+    meta: Dict[str, Any]
+    set_type: ExerciseSessionStateItemType
+    rest: int = -1
+    participants: Optional[List[str]] = []
 # operation models end
 
 # socket data start
@@ -72,6 +77,7 @@ class ESMService:
         self.account_connections: dict[str, set[str]] = {}
         self.session_repo = ExerciseSessionRepository(db, redis)
         self.account_repo = AccountRepository(db, redis)
+        self.exercise_meta_repo = ExerciseMetaRepository(db, redis)
         logger.info(_makelog("init"))
     
     
@@ -500,6 +506,7 @@ class ESMService:
 
     
     async def leave_session(self, connection_id: str):
+        """Handle a leave session operation - force user to leave any current session"""
         if not self.running or self.pubsub is None:
             raise RuntimeError("start() must be called before leave_session()")
         
@@ -507,42 +514,96 @@ class ESMService:
             connection = self.connections.get(connection_id)
             if not connection:
                 return
+            
             session_id = connection.session_id
+            account_id = connection.account_id
+            
             if not session_id:
                 return
-            
+
             connection.session_id = ""
+            
             session_connections = self.session_connections.get(session_id)
             if session_connections:
                 session_connections.discard(connection_id)
                 if not session_connections:
                     self.session_connections.pop(session_id, None)
-                    await self.pubsub.unsubscribe(f"{psub_prefix}:session:{session_id}")
-            
+                    if self.pubsub:
+                        await self.pubsub.unsubscribe(f"{psub_prefix}:session:{session_id}")
+        
         await self._update_connection_registry(connection_id, connection)
-        await self.broadcast_operation(operation=ExerciseSessionOperation(
+        
+        leave_op = ExerciseSessionOperation(
             id=str(uuid4()),
             op_type=ExerciseSessionOperationType.LEAVE,
-            session_id=connection.session_id,
-            author_id=connection.account_id,
-            payload={"account_id": connection.account_id, "session_id": connection.session_id},
+            session_id=session_id,
+            author_id=account_id,
+            payload={"account_id": account_id, "session_id": session_id},
             timestamp=datetime.now(timezone.utc),
             version=0,
             instance_id=self.instance_id,
-        ), exclude_connection=connection_id)
+        )
+        await self.broadcast_operation(leave_op, exclude_connection=connection_id)
 
 
     
     async def add_exercise(self, connection_id: str, operation: ExerciseSessionOperation):
+        """Handle adding an exercise to the session"""
         if not self.running or self.pubsub is None:
             raise RuntimeError("start() must be called before add_exercise()")
         
         self._validate_operation(operation)
         session = await self._assert_session_active(operation.session_id)
         await self._assert_connection_in_session(connection_id, operation.session_id)
-
+        
+        try:
+            add_exercise_data = AddExerciseOperation(**operation.payload)
+        except Exception as e:
+            raise ValueError(f"Invalid payload for ADD_EXERCISE operation: {e}")
+        
+        state = await self.session_repo.get_active_session_state_by_user(operation.author_id)
+        if not state:
+            state = await self.session_repo.create_session_state(operation.session_id, operation.author_id)
+        if not state:
+            raise ValueError(f"Session state for user {operation.author_id} not found")
+        
+        if add_exercise_data.participants:
+            valid_participants = []
+            for participant_id in add_exercise_data.participants:
+                is_in_session = any(p.id == participant_id for p in session.participants)
+                if is_in_session:
+                    valid_participants.append(participant_id)
+            
+            participants = valid_participants if valid_participants else [operation.author_id]
+        else:
+            participants = [operation.author_id]
+        
+        new_item = ExerciseSessionStateItem(
+            id=str(uuid4()),
+            order=len(state.items) + 1,
+            participants=participants,
+            type=add_exercise_data.set_type,
+            rest=-1,
+            meta=[ExerciseSessionItemMeta(**m) if isinstance(m, dict) else m 
+                  for m in add_exercise_data.meta.get("meta", [])],
+            sets=[]
+        )
+        
+        state.items.append(new_item)
+        state.version += 1
+        
+        await self.session_repo.update_session_state(state)
+        
+        operation.payload = {
+            "exercise": new_item.dict(),
+            "version": state.version
+        }
+        operation.version = state.version
+        
+        await self.broadcast_operation(operation, exclude_connection=connection_id)
 
     
+
     async def update_exercise(self):
         pass
 

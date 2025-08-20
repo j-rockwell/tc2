@@ -4,6 +4,8 @@ from typing import Optional, List
 from enum import Enum
 from datetime import datetime
 
+from app.schema.exercise_session import ExerciseType
+
 class ExerciseEquipment(str, Enum):
     BARBELL = "barbell"
     DUMBBELL = "dumbbell"
@@ -23,6 +25,7 @@ class ExerciseMuscleGroup(str, Enum):
 
 class ExerciseMeta(BaseModel):
     name: str
+    type: ExerciseType
     created_by: Optional[str] = None
     aliases: Optional[List[str]] = []
     muscle_groups: Optional[List[ExerciseMuscleGroup]] = []

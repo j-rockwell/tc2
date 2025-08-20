@@ -2,7 +2,7 @@ from typing import Optional, List
 from enum import Enum
 from bson import ObjectId
 from datetime import datetime
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field
 
 # For more information about this schema, see:
 # /server/schemas/exercise.json

@@ -230,6 +230,7 @@ async def create_exercise_meta(
         
         new_meta = await repo.create_exercise(
             name=sanitized_name,
+            type=req.type,
             created_by=current_user["id"],
             aliases=sanitized_aliases,
             muscle_groups=req.muscle_groups,
