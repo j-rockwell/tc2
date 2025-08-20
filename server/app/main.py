@@ -1,6 +1,7 @@
-import logging
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
+import logging
+import os
 
 from app.db.mongo import Mongo
 from app.db.redis import Redis
@@ -24,73 +25,98 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     logger.info(f"Starting in {settings.environment} mode")
 
-    # setup mongo connection
-    try:
-        app.state.mongodb = Mongo(settings.mongo_uri, settings.mongo_db_name)
-        mongo_connected = await app.state.mongodb.ping()
-        if mongo_connected:
-            logger.info("Successfully established connection to MongoDB")
-            await create_indexes(app)
-        else:
-            raise RuntimeError("MongoDB connection failed")
-    except Exception as e:
-        logger.error(f"Failed to initialize MongoDB: {e}")
-        raise
-
-    # setup redis connection
-    app.state.redis = None
-    try:
-        r = Redis(settings.redis_uri, db=0)
-        connected = await r.connect()
-        if not connected:
-            raise RuntimeError("Redis connection failed")
-        if not await r.ping():
-            raise RuntimeError("Redis ping failed")
-        app.state.redis = r
-        logger.info("Successfully established connection to Redis")
-    except Exception as e:
-        logger.error(f"Redis connection failed: {e} - continuing without Redis")
-        
-    # setup esms
-    if app.state.redis is not None:
-        try:
-            await init_esms(app.state.mongodb, app.state.redis)
-            logger.info("Exercise Session Message Service initialized")
-        except Exception as e:
-            logger.error(f"Failed to initialize Exercise Session Message Service: {e}")
+    # establish connections
+    await _prepare_db(app)
+    await _prepare_redis(app)
     
-    # setup default roles/accounts
-    if app.state.redis is not None and app.state.mongodb is not None and settings.environment == "dev":
-        logger.info("Attempting to perform initial role and account setup")
-        role_repo = RoleRepository(app.state.mongodb)
-        account_repo = AccountRepository(app.state.mongodb, app.state.redis)
-        await role_repo.perform_role_setup()
-        await account_repo.perform_account_setup(role_repo)
+    # force shutdown if connections are not established
+    if app.state.mongodb is None or app.state.redis is None:
+        logger.fatal("Failed to establish necessary connections. Shutting down application.")
+        os.kill(os.getpid(), 1)
+    
+    await _prepare_dev_data(app)
+    await _prepare_esms(app)
 
     try:
         yield
     finally:
         logger.info("Shutting down application...")
+        
+        await _close_esms()
+        await _close_db(app)
+        await _close_redis(app)
 
-        try:
-            await cleanup_esms()
-            logger.info("Cleaned up ESMS")
-        except Exception as e:
-            logger.error(f"Failed to clean up ESMS: {e}")
+async def _prepare_db(app: FastAPI):
+    try:
+        app.state.mongodb = Mongo(settings.mongo_uri, settings.mongo_db_name, auto_convert_objectids=True)
+        connected = await app.state.mongodb.ping()
+        if connected:
+            logger.info("Successfully established a connection to the database. Now attempting to create database indexes...")
+            await create_indexes(app)
+    except Exception as e:
+        logger.error(f"Failed to initialize database: {e}")
 
-        try:
-            if getattr(app.state, "mongodb", None):
-                await app.state.mongodb.close()
-                logger.info("MongoDB connection closed")
-        except Exception as e:
-            logger.error(f"Failed to close MongoDB: {e}")
+async def _prepare_redis(app: FastAPI):
+    try:
+        redis = Redis(settings.redis_uri, db=0)
+        connected = await redis.connect()
+        if not connected:
+            raise RuntimeError("Failed to initialize redis: connection failed")
+        if not await redis.ping():
+            raise RuntimeError("Failed to initialize redis: ping failed")
+        app.state.redis = redis
+        logger.info("Successfully established a connection to Redis")
+    except Exception as e:
+        logger.error(f"Failed to initialize Redis: {e} ")
+        app.state.redis = None
 
-        try:
-            if app.state.redis:    
-                await app.state.redis.close()
-                logger.info("Redis connection closed")
-        except Exception as e:
-            logger.error(f"Failed to close Redis: {e}")
+async def _prepare_esms(app: FastAPI):
+    try:
+        if app.state.redis is None:
+            raise RuntimeError("Failed to initialize ESMS: redis connection is not established")
+        
+        await init_esms(app.state.mongodb, app.state.redis)
+        logger.info("Successfully initialized Exercise Session Message Service (ESMS)")
+    except Exception as e:
+        logger.error(f"Failed to initialize ESMS: {e}")
+        app.state.redis = None
+
+async def _prepare_dev_data(app: FastAPI):
+    logger.info("Preparing to generate dev environment data...")
+    
+    if settings.environment != "dev":
+        logger.info("Skipping dev data preparation")
+    
+    if app.state.redis is None or app.state.mongodb is None:
+        raise RuntimeError("Failed to prepare dev data: Redis or MongoDB connection is not established")
+    
+    role_repo = RoleRepository(app.state.mongodb)
+    account_repo = AccountRepository(app.state.mongodb, app.state.redis)
+    await role_repo.perform_role_setup()
+    await account_repo.perform_account_setup(role_repo)
+
+async def _close_db(app: FastAPI):
+    try:
+        if getattr(app.state, "mongodb", None):
+            await app.state.mongodb.close()
+            logger.info("MongoDB connection closed")
+    except Exception as e:
+        logger.error(f"Failed to close MongoDB: {e}")
+
+async def _close_redis(app: FastAPI):
+    try:
+        if getattr(app.state, "redis", None):
+            await app.state.redis.close()
+            logger.info("Redis connection closed")
+    except Exception as e:
+        logger.error(f"Failed to close Redis: {e}")
+
+async def _close_esms():
+    try:
+        await cleanup_esms()
+        logger.info("Cleaned up ESMS data")
+    except Exception as e:
+        logger.error(f"Failed to close ESMS: {e}")
 
 app = FastAPI(
     title="tc2",
@@ -101,9 +127,9 @@ app = FastAPI(
 
 app.include_router(AccountRouter, prefix="/account", tags=["account"])
 app.include_router(AuthRouter, prefix="/auth", tags=["authentication"])
+app.include_router(ExerciseRouter, prefix="/exercise", tags=["exercises"])
 app.include_router(ExerciseSessionRouter, prefix="/session", tags=["exercise session"])
 app.include_router(ExerciseSessionWebSocketRouter, prefix="/session/ws", tags=["exercise session socket"])
-app.include_router(ExerciseRouter, prefix="/exercise", tags=["exercises"])
 
 async def create_indexes(app: FastAPI):
     await app.state.mongodb.db.accounts.create_index("email", unique=True)
@@ -115,4 +141,4 @@ async def create_indexes(app: FastAPI):
     await app.state.mongodb.db.exercise_sessions.create_index([("status", 1), ("participants.id", 1)])
     await app.state.mongodb.db.exercise_sessions.create_index([("updated_at", -1)])
     await app.state.mongodb.db.exercise_sessions.create_index("invitations.invited")
-    logger.info("Created MongoDB indexes")
+    logger.info("Finished creating database indexes")
