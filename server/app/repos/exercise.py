@@ -6,6 +6,7 @@ import re
 from app.db.redis import Redis
 from app.db.mongo import Mongo
 from app.schema.exercise import ExerciseMeta, ExerciseMuscleGroup, ExerciseMetaInDB, ExerciseEquipment
+from app.schema.exercise_session import ExerciseType
 
 logger = logging.getLogger(__name__)
 meta_collection_name = "exercise_meta"
@@ -130,6 +131,7 @@ class ExerciseMetaRepository:
     async def create_exercise(
         self,
         name: str,
+        type: ExerciseType,
         created_by: Optional[str] = None,
         aliases: Optional[List[str]] = None,
         muscle_groups: Optional[List[ExerciseMuscleGroup]] = None,
@@ -144,6 +146,7 @@ class ExerciseMetaRepository:
             now = datetime.now(timezone.utc)
             new_meta = ExerciseMeta(
                 name=name,
+                type=type,
                 created_by=created_by,
                 aliases=aliases,
                 muscle_groups=muscle_groups,

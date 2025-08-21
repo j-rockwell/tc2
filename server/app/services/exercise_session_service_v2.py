@@ -1,8 +1,8 @@
-from operator import add
+from dataclasses import dataclass
 from fastapi import WebSocket
 from pydantic import BaseModel
 from datetime import datetime, timezone
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, Callable, Awaitable
 from enum import Enum
 from uuid import uuid4
 import asyncio
@@ -14,7 +14,7 @@ from app.db.redis import Redis
 from app.repos.account import AccountRepository
 from app.repos.exercise import ExerciseMetaRepository
 from app.repos.exercise_session import ExerciseSessionRepository
-from app.schema.exercise import ExerciseMeta
+from app.schema.exercise import ExerciseMeta, ExerciseMetaInDB
 from app.schema.exercise_session import ExerciseSessionItemMeta, ExerciseSessionStateItem, ExerciseSessionStateItemType, ExerciseSessionStatus
 
 logger = logging.getLogger(__name__)
@@ -35,26 +35,44 @@ class ExerciseSessionOperationType(str, Enum):
     REMOVE_SET = "remove_set"
     COMPLETE_SET = "complete_set"
     UPDATE_CURSOR = "update_cursor"
+    SESSION_UPDATE = "session_update"
 
 class ExerciseSessionOperation(BaseModel):
     id: str
     session_id: str
     author_id: str
+    instance_id: Optional[str] = None
     op_type: ExerciseSessionOperationType
-    instance_id: str
     payload: Dict[str, Any]
     timestamp: datetime
     version: int = 0
 
 class AddExerciseOperation(BaseModel):
-    meta: Dict[str, Any]
+    meta: List[ExerciseMetaInDB]
     set_type: ExerciseSessionStateItemType
     rest: int = -1
     participants: Optional[List[str]] = []
+    
+Handler = Callable[[str, ExerciseSessionOperation], Awaitable[None]]
 # operation models end
 
-# socket data start
-class ESMConnectionInfo(BaseModel):
+# stats models start
+@dataclass
+class ESMStats:
+    open_connections: int = 0
+    incoming_messages: int = 0
+    outgoing_messages: int = 0
+    
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "open_connections": self.open_connections,
+            "incoming_messages": self.incoming_messages,
+            "outgoing_messages": self.outgoing_messages
+        }
+# stats models end
+
+@dataclass
+class ESMConnectionInfo:
     websocket: WebSocket
     account_id: str
     session_id: str
@@ -75,9 +93,11 @@ class ESMService:
         self.connections: dict[str, ESMConnectionInfo] = {}
         self.session_connections: dict[str, set[str]] = {}
         self.account_connections: dict[str, set[str]] = {}
+        self.handlers: Dict[ExerciseSessionOperationType, List[Handler]] = {}
         self.session_repo = ExerciseSessionRepository(db, redis)
         self.account_repo = AccountRepository(db, redis)
         self.exercise_meta_repo = ExerciseMetaRepository(db, redis)
+        self.stats = ESMStats()
         logger.info(_makelog("init"))
     
     
@@ -160,6 +180,11 @@ class ESMService:
                 raise ValueError("Exercise ID must be provided in payload for UPDATE_CURSOR operation")
             elif operation.payload.get("set_id") is None:
                 raise ValueError("Exercise Set ID must be provided in payload for UPDATE_CURSOR operation")
+        
+        # session update
+        if operation.op_type == ExerciseSessionOperationType.SESSION_UPDATE:
+            if not operation.payload:
+                raise ValueError("Payload must be provided for SESSION_UPDATE operation")
         
         operation.timestamp = datetime.now(timezone.utc)
     
@@ -258,6 +283,25 @@ class ESMService:
     
     
     
+    async def _route_operation(self, connection_id: str, operation: ExerciseSessionOperation):
+        """Route a generic ExerciseSessionOperation to its registered handler function and broadcast it"""
+        
+        logger.info("route operation called")
+        logger.info(f"connection_id={connection_id}")
+        logger.info(f"operation={operation.dict()}")
+        for handler in self.handlers.get(operation.op_type, []):
+            try:
+                await handler(connection_id, operation)
+            except Exception as e:
+                logger.error(_makelog("handler failed for %s: %s"), operation.op_type, e)
+        
+        if operation.session_id and operation.op_type not in {
+            # Add operations we want to skip if no session id or operation type is present    
+        }:
+            await self.broadcast_operation(operation, exclude_connection=connection_id)
+    
+    
+    
     async def get_session_connections(self, session_id: str) -> list[dict[str, Any]]:
         """Get all connections for a specific session"""
         pattern = f"{psub_prefix}:connection:*"
@@ -282,6 +326,7 @@ class ESMService:
         if self.running:
             return
         
+        self.running = True
         self.pubsub = self.redis.get_client().pubsub()
         await self.pubsub.subscribe(f"{psub_prefix}:global")
         self.pubsub_task = asyncio.create_task(self._listen())
@@ -293,6 +338,8 @@ class ESMService:
         """Stop the ESM service"""
         if not self.running:
             return
+        
+        self.running = False
         
         async with self._lock:
             connections = self.connections
@@ -325,6 +372,26 @@ class ESMService:
     
     
     
+    def register_handler(self, op_type: ExerciseSessionOperationType, handler: Handler):
+        """Register a new handler for an exercise session operation type"""
+        self.handlers.setdefault(op_type, []).append(handler)
+
+
+    
+    def register_default_handlers(self):
+        self.register_handler(ExerciseSessionOperationType.JOIN, self.join_session)
+        self.register_handler(ExerciseSessionOperationType.LEAVE, self.leave_session)
+        self.register_handler(ExerciseSessionOperationType.ADD_EXERCISE, self.add_exercise)
+        self.register_handler(ExerciseSessionOperationType.UPDATE_EXERCISE, self.update_exercise)
+        self.register_handler(ExerciseSessionOperationType.REMOVE_EXERCISE, self.remove_exercise)
+        self.register_handler(ExerciseSessionOperationType.ADD_SET, self.add_set)
+        self.register_handler(ExerciseSessionOperationType.UPDATE_SET, self.update_set)
+        self.register_handler(ExerciseSessionOperationType.REMOVE_SET, self.remove_set)
+        self.register_handler(ExerciseSessionOperationType.COMPLETE_SET, self.complete_set)
+        self.register_handler(ExerciseSessionOperationType.UPDATE_CURSOR, self.update_cursor)
+        # self.register_handler(ExerciseSessionOperationType.SESSION_UPDATE, self.join_session)
+        
+                
     async def open_connection(self, websocket: WebSocket, account_id: str, session_id: str) -> str:
         """Open a new connection and register it"""
         if not self.running or self.pubsub is None:
@@ -341,15 +408,17 @@ class ESMService:
             instance_id=self.instance_id
         )
         
+        need_subscribe = False
         async with self._lock:
             self.connections[connection_id] = connection
             self.account_connections.setdefault(account_id, set()).add(connection_id)
-            
             if session_id:
                 created = session_id not in self.session_connections
                 self.session_connections.setdefault(session_id, set()).add(connection_id)
-                if created:
-                    await self.pubsub.subscribe(f"{psub_prefix}:session:{session_id}")
+                need_subscribe = created
+            self.stats.open_connections += 1
+        if need_subscribe:
+            await self.pubsub.subscribe(f"{psub_prefix}:session:{session_id}")
             
         await self._update_connection_registry(connection_id, connection)
         logger.info(_makelog("opened connection id=%s account=%s session=%s"), connection_id, account_id, session_id)
@@ -383,6 +452,7 @@ class ESMService:
                             await self.pubsub.unsubscribe(f"{psub_prefix}:session:{session_id}")
             
             self.connections.pop(connection_id, None)
+            self.stats.open_connections -= 1
         
         await self._remove_connection_registry(connection_id)
         
@@ -433,7 +503,7 @@ class ESMService:
         await self.redis.publish(channel, operation.json())
         
         async with self._lock:
-            connections = list(self.connections.keys())
+            connections = list(self.session_connections.get(operation.session_id, ()))
         
         if not connections:
             return
@@ -448,22 +518,69 @@ class ESMService:
     
 
     
+    async def handle_client_op(self, connection_id: str, payload: Dict[str, Any]):
+        async with self._lock:
+            connection = self.connections.get(connection_id)
+            if not connection:
+                return
+            connection.last_activity = datetime.now(timezone.utc)
+            author_id = connection.account_id
+            default_session_id = connection.session_id or ""
+
+        try:
+            op = ExerciseSessionOperation(
+                id=payload.get("id", str(uuid4())),
+                op_type=ExerciseSessionOperationType(payload["op_type"]),
+                session_id=payload.get("session_id", default_session_id),
+                author_id=author_id,
+                payload=payload.get("payload", {}),
+                timestamp=datetime.now(timezone.utc),
+                version=payload.get("version", 0),
+                instance_id=self.instance_id,
+            )
+            
+            self.stats.incoming_messages += 1
+            await self._route_operation(connection_id, operation=op)
+        except Exception as e:
+            logger.error(_makelog("handle_client_op error: %s"), e)
+
+        
+        
+    def get_stats(self) -> Dict[str, Any]:
+        with_sessions = {sid: len(conns) for sid, conns in self.session_connections.items()}
+        with_accounts = {aid: len(conns) for aid, conns in self.account_connections.items()}
+        return {
+            "messages": self.stats.to_dict(),
+            "instance_id": self.instance_id,
+            "connections_by_session": with_sessions,
+            "connections_by_account": with_accounts
+        }
+        
+        
+        
     async def join_session(self, connection_id: str, operation: ExerciseSessionOperation):
         """Handle a join session operation"""
         assert operation.op_type == ExerciseSessionOperationType.JOIN, "Invalid operation type for join_session"
-        assert operation.payload, "Payload must be provided"
         
         if not self.running or self.pubsub is None:
             raise RuntimeError("start() must be called before join_session()")
         
         async with self._lock:
-            connection = self.connections.get(operation.id)
+            connection = self.connections.get(connection_id)
             if not connection:
-                raise
+                return
             old_session_id = connection.session_id
         
-        if old_session_id and old_session_id != operation.payload.get("session_id"):
-            await self.leave_session(connection_id)
+        if old_session_id and old_session_id != operation.session_id:
+            await self.leave_session(connection_id=connection_id, operation=ExerciseSessionOperation(
+                id=str(uuid4()),
+                author_id=operation.author_id,
+                session_id=old_session_id,
+                op_type=ExerciseSessionOperationType.LEAVE,
+                payload={},
+                timestamp=datetime.now(timezone.utc),
+                version=0,
+            ))
         
         try:
             self._validate_operation(operation)
@@ -471,9 +588,9 @@ class ESMService:
             logger.error(f"Validation failed for operation {operation.id}: {e}")
             raise ValueError(f"Validation failed: {e}")
         
-        session_id = operation.payload.get("session_id")
+        session_id = operation.session_id
         if not session_id:
-            raise ValueError("Session ID must be provided in payload for JOIN operation")
+            raise ValueError("Session ID must be provided for JOIN operation")
         
         author_id = operation.author_id
         author = await self.account_repo.get_account_by_id(author_id)
@@ -502,10 +619,11 @@ class ESMService:
         
         await self._update_connection_registry(connection_id, connection)
         await self.broadcast_operation(operation, exclude_connection=connection_id)
+        logger.info(_makelog("%s has joined %s exercise session successfully"), author_id, session_id)
 
 
     
-    async def leave_session(self, connection_id: str):
+    async def leave_session(self, connection_id: str, operation: ExerciseSessionOperation):
         """Handle a leave session operation - force user to leave any current session"""
         if not self.running or self.pubsub is None:
             raise RuntimeError("start() must be called before leave_session()")
@@ -544,6 +662,7 @@ class ESMService:
             instance_id=self.instance_id,
         )
         await self.broadcast_operation(leave_op, exclude_connection=connection_id)
+        logger.info(_makelog("%s has left %s exercise session successfully"), account_id, session_id)
 
 
     
@@ -578,14 +697,27 @@ class ESMService:
         else:
             participants = [operation.author_id]
         
+        if not isinstance(add_exercise_data.meta, list):
+            raise ValueError("Meta must be a list of ExerciseMeta objects")
+        
+        meta: list[ExerciseSessionItemMeta] = []
+        for m in add_exercise_data.meta:
+            if not m.id:
+                continue
+            
+            meta.append(ExerciseSessionItemMeta(
+                internal_id=m.id,
+                name=m.name,
+                type=m.type
+            ))
+        
         new_item = ExerciseSessionStateItem(
             id=str(uuid4()),
             order=len(state.items) + 1,
             participants=participants,
             type=add_exercise_data.set_type,
             rest=-1,
-            meta=[ExerciseSessionItemMeta(**m) if isinstance(m, dict) else m 
-                  for m in add_exercise_data.meta.get("meta", [])],
+            meta=meta,
             sets=[]
         )
         
@@ -604,35 +736,35 @@ class ESMService:
 
     
 
-    async def update_exercise(self):
+    async def update_exercise(self, connection_id: str, operation: ExerciseSessionOperation):
         pass
 
 
     
-    async def remove_exercise(self):
+    async def remove_exercise(self, connection_id: str, operation: ExerciseSessionOperation):
         pass
 
 
     
-    async def add_set(self):
+    async def add_set(self, connection_id: str, operation: ExerciseSessionOperation):
         pass
 
 
     
-    async def update_set(self):
+    async def update_set(self, connection_id: str, operation: ExerciseSessionOperation):
         pass
 
 
     
-    async def remove_set(self):
+    async def remove_set(self, connection_id: str, operation: ExerciseSessionOperation):
         pass
 
 
     
-    async def complete_set(self):
+    async def complete_set(self, connection_id: str, operation: ExerciseSessionOperation):
         pass
 
 
     
-    async def update_cursor(self):
+    async def update_cursor(self, connection_id: str, operation: ExerciseSessionOperation):
         pass

@@ -8,9 +8,9 @@ from app.db.redis import Redis
 from app.routers.account import router as AccountRouter
 from app.routers.auth import router as AuthRouter
 from app.routers.exercise_session import router as ExerciseSessionRouter
-from app.routers.exercise_session_ws import router as ExerciseSessionWebSocketRouter
+from app.routers.exercise_session_ws_v2 import router as ExerciseSessionWebSocketRouter
 from app.routers.exercise import router as ExerciseRouter
-from app.routers.exercise_session_ws import init_esms, cleanup_esms
+from app.routers.exercise_session_ws_v2 import init_esms, cleanup_esms
 from app.config import settings
 from app.repos.perm import RoleRepository
 from app.repos.account import AccountRepository

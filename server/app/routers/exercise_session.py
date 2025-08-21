@@ -236,7 +236,7 @@ async def send_session_invite(
             "exercise_sessions",
             {"_id": found_session["_id"]},
             {
-                "$push": {"invites": new_invite.dict()},
+                "$push": {"invitations": new_invite.dict()},
                 "$set":  {"updated_at": datetime.utcnow()}
             }
         )
@@ -270,7 +270,6 @@ async def accept_session_invite(
         account_id = current_user["id"]
         session_id = req.session_id
         
-        # check if user has an active session first
         conflict = await db.find_one(
             exercise_sessions_key,
             {
@@ -284,7 +283,6 @@ async def accept_session_invite(
         if conflict:
             raise HTTPException(status.HTTP_409_CONFLICT, detail="You already have an active exercise session")
         
-        # get session attached to the invitation they are trying to accept
         found_session = await db.find_one(
             exercise_sessions_key,
             {
@@ -297,7 +295,6 @@ async def accept_session_invite(
         
         session = ExerciseSessionInDB(**found_session)
         
-        # check if user is invited to the session
         if not any(inv.invited == account_id for inv in session.invitations):
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No invitation found for account")
         
@@ -311,7 +308,7 @@ async def accept_session_invite(
             { "_id": ObjectId(session_id) },
             {
                 "$push": {"participants": new_participant.dict()},
-                "$pull": {"invites": {"invited_id": account_id}},
+                "$pull": {"invitations": {"invited_id": account_id}},
                 "$set":  {"updated_at": datetime.utcnow()}
             }
         )
