@@ -27,6 +27,8 @@ def _makelog(msg: str) -> str:
 class ExerciseSessionOperationType(str, Enum):
     JOIN = "join"
     LEAVE = "leave"
+    PARTICIPANT_JOIN = "participant_join"
+    PARTICIPANT_LEAVE = "participant_leave"
     ADD_EXERCISE = "add_exercise"
     UPDATE_EXERCISE = "update_exercise"
     REMOVE_EXERCISE = "remove_exercise"
@@ -116,6 +118,20 @@ class ESMService:
                 raise ValueError("Payload must be provided for LEAVE operation")
             elif operation.payload.get("session_id") is None:
                 raise ValueError("Session ID must be provided in payload for LEAVE operation")
+        
+        # participant join
+        if operation.op_type == ExerciseSessionOperationType.PARTICIPANT_JOIN:
+            if not operation.payload:
+                raise ValueError("Payload must be provided for the PARTICIPANT_JOIN operation")
+            elif operation.payload.get("session_id") is None:
+                raise ValueError("Session ID must be provided in payload for PARTICIPANT_JOIN operation")
+        
+        # participant leave
+        if operation.op_type == ExerciseSessionOperationType.PARTICIPANT_LEAVE:
+            if not operation.payload:
+                raise ValueError("Payload must be provided for the PARTICIPANT_LEAVE operation")
+            elif operation.payload.get("session_id") is None:
+                raise ValueError("Session ID must be provided in payload for PARTICIPANT_LEAVE operation")
         
         # add_exercise
         if operation.op_type == ExerciseSessionOperationType.ADD_EXERCISE:
@@ -295,9 +311,17 @@ class ESMService:
             except Exception as e:
                 logger.error(_makelog("handler failed for %s: %s"), operation.op_type, e)
         
-        if operation.session_id and operation.op_type not in {
-            # Add operations we want to skip if no session id or operation type is present    
-        }:
+        # Operations that handle their own broadcasting and should be skipped
+        skip_broadcast_ops = {
+            ExerciseSessionOperationType.JOIN,                  # Handles its own broadcast (sends PARTICIPANT_JOIN)
+            ExerciseSessionOperationType.LEAVE,                 # Handles its own broadcast (sends PARTICIPANT_LEAVE)
+            ExerciseSessionOperationType.PARTICIPANT_JOIN,      # Already a broadcast
+            ExerciseSessionOperationType.PARTICIPANT_LEAVE,     # Already a broadcast
+            ExerciseSessionOperationType.SESSION_UPDATE,        # Direct messages, not broadcasts
+        }
+    
+        # Only broadcast if it's not in the skip list
+        if operation.session_id and operation.op_type not in skip_broadcast_ops:
             await self.broadcast_operation(operation, exclude_connection=connection_id)
     
     
@@ -604,9 +628,6 @@ class ESMService:
         if session.status != ExerciseSessionStatus.ACTIVE:
             raise ValueError(f"Session with ID {session_id} is not active")
         
-        if author_id in session.participants:
-            raise ValueError(f"Account with ID {author_id} is already a participant of this session")
-        
         async with self._lock:
             connection = self.connections.get(connection_id)
             if not connection:
@@ -618,7 +639,55 @@ class ESMService:
                 await self.pubsub.subscribe(f"{psub_prefix}:session:{session_id}")
         
         await self._update_connection_registry(connection_id, connection)
-        await self.broadcast_operation(operation, exclude_connection=connection_id)
+        
+        join_op = ExerciseSessionOperation(
+            id=str(uuid4()),
+            op_type=ExerciseSessionOperationType.PARTICIPANT_JOIN,
+            session_id=session_id,
+            author_id=author_id,
+            payload={
+                "account_id": author_id,
+                "username": author.username,
+                "session_id": session_id,
+                "joined_at": datetime.now(timezone.utc).isoformat(),
+            },
+            timestamp=datetime.now(timezone.utc),
+            version=0,
+            instance_id=self.instance_id
+        )
+        
+        await self.broadcast_operation(join_op, exclude_connection=connection_id)
+        
+        participants = []
+        for participant in session.participants:
+            participant_account = await self.account_repo.get_account_by_id(participant.id)
+            if participant_account:
+                participants.append({
+                    "id": participant_account.id,
+                    "username": participant_account.username,
+                    "color": participant.color if hasattr(participant, 'color') else "#FFFFFF"
+                })
+        
+        welcome_op = ExerciseSessionOperation(
+            id=str(uuid4()),
+            op_type=ExerciseSessionOperationType.SESSION_UPDATE,
+            session_id=session_id,
+            author_id="",
+            payload={
+                "session": {
+                    "id": session.id,
+                    "name": session.name,
+                    "participants": participants,
+                    "owner_id": session.owner_id
+                }
+            },
+            timestamp=datetime.now(timezone.utc),
+            version=0,
+            instance_id=self.instance_id
+        )
+        
+        await self.send_to_connection(connection_id, welcome_op)
+
         logger.info(_makelog("%s has joined %s exercise session successfully"), author_id, session_id)
 
 
@@ -651,16 +720,25 @@ class ESMService:
         
         await self._update_connection_registry(connection_id, connection)
         
+        author = await self.account_repo.get_account_by_id(account_id)
+        username = author.username if author else "Unknown"
+        
         leave_op = ExerciseSessionOperation(
             id=str(uuid4()),
-            op_type=ExerciseSessionOperationType.LEAVE,
+            op_type=ExerciseSessionOperationType.PARTICIPANT_LEAVE,  # Changed from LEAVE
             session_id=session_id,
             author_id=account_id,
-            payload={"account_id": account_id, "session_id": session_id},
+            payload={
+                "account_id": account_id,
+                "username": username,
+                "session_id": session_id,
+                "left_at": datetime.now(timezone.utc).isoformat(),
+            },
             timestamp=datetime.now(timezone.utc),
             version=0,
             instance_id=self.instance_id,
         )
+        
         await self.broadcast_operation(leave_op, exclude_connection=connection_id)
         logger.info(_makelog("%s has left %s exercise session successfully"), account_id, session_id)
 
