@@ -14,6 +14,7 @@ from app.db.redis import Redis
 from app.repos.account import AccountRepository
 from app.repos.exercise import ExerciseMetaRepository
 from app.repos.exercise_session import ExerciseSessionRepository
+from app.schema.account import AccountIdentifier
 from app.schema.exercise import ExerciseMeta, ExerciseMetaInDB
 from app.schema.exercise_session import ExerciseSessionItemMeta, ExerciseSessionStateItem, ExerciseSessionStateItemType, ExerciseSessionStatus
 
@@ -54,6 +55,12 @@ class AddExerciseOperation(BaseModel):
     set_type: ExerciseSessionStateItemType
     rest: int = -1
     participants: Optional[List[str]] = []
+
+class AddExerciseResponse(BaseModel):
+    exercise: ExerciseSessionStateItem
+    added_by: AccountIdentifier
+    added_at: datetime
+    version: int = 0
     
 Handler = Callable[[str, ExerciseSessionOperation], Awaitable[None]]
 # operation models end
@@ -752,6 +759,10 @@ class ESMService:
         session = await self._assert_session_active(operation.session_id)
         await self._assert_connection_in_session(connection_id, operation.session_id)
         
+        author = await self.account_repo.get_account_by_id(operation.author_id)
+        if not author:
+            raise ValueError(f"Account with ID {operation.author_id} does not exist")
+    
         try:
             add_exercise_data = AddExerciseOperation(**operation.payload)
         except Exception as e:
@@ -803,14 +814,30 @@ class ESMService:
         
         await self.session_repo.update_session_state(state)
         
-        operation.payload = {
-            "exercise": new_item.dict(),
-            "version": state.version
-        }
-        operation.version = state.version
+        res = AddExerciseResponse(
+            exercise=new_item,
+            added_at=datetime.now(timezone.utc),
+            added_by=AccountIdentifier(
+                id=operation.author_id,
+                username=author.username
+            ),
+            version=state.version,
+        )
         
-        await self.broadcast_operation(operation, exclude_connection=connection_id)
-
+        res_op = ExerciseSessionOperation(
+            id=str(uuid4()),
+            op_type=ExerciseSessionOperationType.ADD_EXERCISE,
+            session_id=operation.session_id,
+            author_id=operation.author_id,
+            payload=res.dict(),
+            timestamp=datetime.now(timezone.utc),
+            version=state.version,
+            instance_id=self.instance_id,
+        )
+        
+        await self.broadcast_operation(res_op, exclude_connection=connection_id)
+        
+        
     
 
     async def update_exercise(self, connection_id: str, operation: ExerciseSessionOperation):

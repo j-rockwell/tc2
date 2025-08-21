@@ -42,3 +42,12 @@ class AccountInDB(AccountBase):
         allow_population_by_field_name = True
         json_encoders = { ObjectId: str }
         from_attributes = True
+
+class AccountIdentifier(BaseModel):
+    id: str
+    username: str
+    email: Optional[str] = None
+    
+    class Config:
+        allow_population_by_field_name = True
+        from_attributes = True
