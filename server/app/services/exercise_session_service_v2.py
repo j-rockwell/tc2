@@ -320,7 +320,6 @@ class ESMService:
             ExerciseSessionOperationType.SESSION_UPDATE,        # Direct messages, not broadcasts
         }
     
-        # Only broadcast if it's not in the skip list
         if operation.session_id and operation.op_type not in skip_broadcast_ops:
             await self.broadcast_operation(operation, exclude_connection=connection_id)
     
@@ -725,7 +724,7 @@ class ESMService:
         
         leave_op = ExerciseSessionOperation(
             id=str(uuid4()),
-            op_type=ExerciseSessionOperationType.PARTICIPANT_LEAVE,  # Changed from LEAVE
+            op_type=ExerciseSessionOperationType.PARTICIPANT_LEAVE,
             session_id=session_id,
             author_id=account_id,
             payload={
